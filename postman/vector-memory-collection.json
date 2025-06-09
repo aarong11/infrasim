@@ -1,0 +1,453 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Vector Memory Store API",
+    "description": "Complete API collection for testing vector memory database operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "description": "Base URL for the API"
+    }
+  ],
+  "item": [
+    {
+      "name": "Company Management",
+      "description": "Operations for managing companies in vector memory",
+      "item": [
+        {
+          "name": "Add Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"addCompany\",\n  \"company\": {\n    \"name\": \"{{$randomCompanyName}}\",\n    \"description\": \"A sample company for testing vector memory operations\",\n    \"sectorTags\": [\"💻 Technology\", \"🤖 AI\", \"🚀 Startup\"],\n    \"services\": [\"AI Solutions\", \"Software Development\", \"Machine Learning\"],\n    \"metadata\": {\n      \"industry\": \"tech\",\n      \"complexity\": \"simple\",\n      \"compliance\": [\"I"],\n      \"employees\": 85,\n      \"founded\": 2022\n    }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);",
+                  "pm.test('id is returned', () => pm.expect(json.id).to.exist);",
+                  "pm.environment.set('companyId', json.id);",
+                  "pm.environment.set('uniqueId', Math.random().toString(36).substring(2, 10));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"updateCompany\",\n  \"company\": {\n    \"id\": \"{{companyId}}\",\n    \"name\": \"Updated Company Name\",\n    \"description\": \"Updated description with new information\",\n    \"sectorTags\": [\"💻 Technology\", \"🤖 AI\", \"📊 Analytics\"],\n    \"services\": [\"AI Solutions\", \"Data Analytics\", \"Machine Learning\", \"Consulting\"],\n    \"metadata\": {\n      \"industry\": \"tech\",\n      \"complexity\": \"moderate\",\n      \"compliance\": [\"ISO 27001\", \"GDPR\"],\n      \"employees\": 120,\n      \"founded\": 2020\n    },\n    \"createdAt\": \"2024-01-01T00:00:00.000Z\",\n    \"updatedAt\": \"{{$isoTimestamp}}\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Search & Discovery",
+      "description": "Operations for searching and discovering companies",
+      "item": [
+        {
+          "name": "Search Companies by Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"searchCompanies\",\n  \"query\": \"AI technology startup\",\n  \"limit\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);",
+                  "pm.test('results is array', () => pm.expect(json.results).to.be.an('array'));",
+                  "pm.test('results have score and similarity', () => {",
+                  "  if (json.results.length > 0) {",
+                  "    pm.expect(json.results[0]).to.have.property('score');",
+                  "    pm.expect(json.results[0]).to.have.property('similarity');",
+                  "    pm.expect(json.results[0]).to.have.property('record');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Find Similar Companies",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"findSimilarCompanies\",\n  \"companyId\": \"{{companyId}}\",\n  \"limit\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);",
+                  "pm.test('results is array', () => pm.expect(json.results).to.be.an('array'));",
+                  "pm.test('similar companies exclude target', () => {",
+                  "  const targetId = pm.environment.get('companyId');",
+                  "  json.results.forEach(result => {",
+                  "    pm.expect(result.record.id).to.not.equal(targetId);",
+                  "  });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Data Retrieval",
+      "description": "Operations for retrieving company data",
+      "item": [
+        {
+          "name": "Get All Companies",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"getAllCompanies\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);",
+                  "pm.test('companies array exists', () => pm.expect(json.companies).to.be.an('array'));",
+                  "pm.test('companies have required fields', () => {",
+                  "  if (json.companies.length > 0) {",
+                  "    const company = json.companies[0];",
+                  "    pm.expect(company).to.have.property('id');",
+                  "    pm.expect(company).to.have.property('name');",
+                  "    pm.expect(company).to.have.property('description');",
+                  "    pm.expect(company).to.have.property('sectorTags');",
+                  "    pm.expect(company).to.have.property('services');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Infrastructure Operations",
+      "description": "Operations for infrastructure creation and parsing",
+      "item": [
+        {
+          "name": "Create Root Organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"createOrganization\",\n  \"description\": \"A fintech startup providing digital banking solutions with AI-powered fraud detection and mobile payment processing\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);",
+                  "pm.test('organization is returned', () => pm.expect(json.organization).to.exist);",
+                  "pm.test('organization has required fields', () => {",
+                  "  const org = json.organization;",
+                  "  pm.expect(org).to.have.property('type');",
+                  "  pm.expect(org).to.have.property('name');",
+                  "  pm.expect(org).to.have.property('hostname');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Parse Infrastructure Description",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"parseInfrastructure\",\n  \"description\": \"A bank with web servers for customer portal, database servers for transaction data, firewall for security, and load balancers for high availability\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(json.success).to.be.true);",
+                  "pm.test('parsed infrastructure returned', () => pm.expect(json.parsed).to.exist);",
+                  "pm.test('entities array exists', () => pm.expect(json.parsed.entities).to.be.an('array'));",
+                  "pm.test('connections array exists', () => pm.expect(json.parsed.connections).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Test Workflows",
+      "description": "Complete test workflows for common use cases",
+      "item": [
+        {
+          "name": "Complete Company Lifecycle Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"addCompany\",\n  \"company\": {\n    \"name\": \"Workflow Test Corp {{$timestamp}}\",\n    \"description\": \"Healthcare technology company developing IoT medical devices and telemedicine platforms\",\n    \"sectorTags\": [\"🏥 Healthcare\", \"💻 Technology\", \"🌐 IoT\", \"🔬 Medical Devices\"],\n    \"services\": [\"Medical Device Development\", \"Telemedicine Platform\", \"IoT Health Monitoring\"],\n    \"metadata\": {\n      \"industry\": \"healthcare\",\n      \"complexity\": \"complex\",\n      \"compliance\": [\"HIPAA\", \"FDA\", \"ISO 13485\"]\n    }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Step 1: Add company",
+                  "pm.test('Company created successfully', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.id).to.exist;",
+                  "  pm.environment.set('workflowCompanyId', json.id);",
+                  "});",
+                  "",
+                  "// Step 2: Search for similar companies",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/vector-memory',",
+                  "  method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: {",
+                  "    mode: 'raw',",
+                  "    raw: JSON.stringify({",
+                  "      action: 'searchCompanies',",
+                  "      query: 'healthcare technology IoT',",
+                  "      limit: 3",
+                  "    })",
+                  "  }",
+                  "}, (err, res) => {",
+                  "  pm.test('Search finds relevant companies', () => {",
+                  "    pm.expect(err).to.be.null;",
+                  "    const searchJson = res.json();",
+                  "    pm.expect(searchJson.success).to.be.true;",
+                  "    pm.expect(searchJson.results).to.be.an('array');",
+                  "  });",
+                  "});",
+                  "",
+                  "// Step 3: Find similar companies",
+                  "setTimeout(() => {",
+                  "  pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/api/vector-memory',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: {",
+                  "      mode: 'raw',",
+                  "      raw: JSON.stringify({",
+                  "        action: 'findSimilarCompanies',",
+                  "        companyId: pm.environment.get('workflowCompanyId'),",
+                  "        limit: 3",
+                  "      })",
+                  "    }",
+                  "  }, (err, res) => {",
+                  "    pm.test('Similar companies found', () => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      const similarJson = res.json();",
+                  "      pm.expect(similarJson.success).to.be.true;",
+                  "      pm.expect(similarJson.results).to.be.an('array');",
+                  "    });",
+                  "  });",
+                  "}, 1000);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sample Data",
+      "description": "Requests for populating sample data",
+      "item": [
+        {
+          "name": "Add Financial Services Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"addCompany\",\n  \"company\": {\n    \"name\": \"FinTech Bank\",\n    \"description\": \"A leading digital bank specializing in mobile payments, cryptocurrency trading, and AI-powered financial advisory services for retail and business customers.\",\n    \"sectorTags\": [\"🏦 Banking\", \"💳 FinTech\", \"💰 Payments\", \"🤖 AI\"],\n    \"services\": [\"Digital Banking\", \"Payment Processing\", \"Crypto Trading\", \"Financial Analytics\", \"Customer Management\", \"AI Advisory\"],\n    \"metadata\": {\n      \"industry\": \"banking\",\n      \"complexity\": \"complex\",\n      \"compliance\": [\"GDPR\", \"PCI-DSS\", \"SOX\", \"Basel III\"],\n      \"employees\": 2500,\n      \"founded\": 2018,\n      \"headquarters\": \"London, UK\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          }
+        },
+        {
+          "name": "Add Healthcare Tech Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"addCompany\",\n  \"company\": {\n    \"name\": \"MedTech Innovations\",\n    \"description\": \"A healthcare technology company developing IoT-enabled medical devices, telemedicine platforms, and AI-powered diagnostic tools for hospitals and clinics.\",\n    \"sectorTags\": [\"🏥 Healthcare\", \"💻 Technology\", \"🌐 IoT\", \"🔬 Medical Devices\"],\n    \"services\": [\"Medical Device Development\", \"Telemedicine Platform\", \"AI Diagnostics\", \"IoT Health Monitoring\", \"Clinical Data Analytics\"],\n    \"metadata\": {\n      \"industry\": \"healthcare\",\n      \"complexity\": \"complex\",\n      \"compliance\": [\"HIPAA\", \"FDA\", \"ISO 13485\", \"GDPR\"],\n      \"employees\": 650,\n      \"founded\": 2019\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          }
+        },
+        {
+          "name": "Add Cloud Infrastructure Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"addCompany\",\n  \"company\": {\n    \"name\": \"CloudScale Infrastructure\",\n    \"description\": \"Enterprise cloud infrastructure provider offering multi-cloud management, containerization, and DevOps automation solutions for Fortune 500 companies.\",\n    \"sectorTags\": [\"☁️ Cloud\", \"💻 Technology\", \"🏢 Enterprise\", \"⚙️ DevOps\"],\n    \"services\": [\"Cloud Infrastructure\", \"Container Orchestration\", \"DevOps Automation\", \"Multi-cloud Management\", \"Security Monitoring\"],\n    \"metadata\": {\n      \"industry\": \"tech\",\n      \"complexity\": \"complex\",\n      \"compliance\": [\"SOC 2\", \"ISO 27001\", \"FedRAMP\"],\n      \"employees\": 1200,\n      \"founded\": 2016\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vector-memory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vector-memory"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

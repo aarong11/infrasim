@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  color: #ffffff;
+  background-color: #0a0a0a;
+}
+
+.react-flow__node {
+  border-radius: 8px;
+}
+
+.react-flow__edge-path {
+  stroke: #00ffff;
+  stroke-width: 2;
+}
+
+.react-flow__controls {
+  background-color: #1f2937;
+  border: 1px solid #00ffff;
+}
+
+.react-flow__controls button {
+  background-color: #374151;
+  border: 1px solid #6b7280;
+  color: #ffffff;
+}
+
+.react-flow__controls button:hover {
+  background-color: #4b5563;
+}
