@@ -224,9 +224,12 @@ export default function Home() {
           {activeTab === 'memory' && (
             <>
               {vectorMemoryReady ? (
-                <CompanyMemoryPanel 
+                <CompanyMemoryPanel
                   vectorService={vectorService}
                   onCompanySelect={handleCompanyMemorySelect}
+                  company={null}
+                  onUpdateDescription={async () => {}}
+                  onClose={() => {}}
                 />
               ) : (
                 <div className="text-center text-gray-400 py-8">

@@ -197,9 +197,8 @@ async function populateVectorDatabase(): Promise<void> {
   console.log('🚀 Starting vector database population...\n');
   
   try {
-    // Initialize the orchestrator
+    // Initialize the orchestrator (vector memory is automatically initialized)
     const orchestrator = new LangChainOrchestrator();
-    await orchestrator.initializeVectorMemory();
     
     console.log('✅ Vector memory initialized successfully\n');
     

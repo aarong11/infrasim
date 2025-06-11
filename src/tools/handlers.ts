@@ -33,7 +33,8 @@ export class ToolHandlers {
   }
 
   async initialize(): Promise<void> {
-    await this.orchestrator.initializeVectorMemory();
+    // Vector memory is automatically initialized in the constructor
+    console.log('✅ Tool handlers initialized');
   }
 
   /**
@@ -734,7 +735,7 @@ User message: ${message}
 Respond naturally as an infrastructure expert assistant:`;
 
       // Use the orchestrator's LLM for intelligent conversation
-      const response = await this.orchestrator.generateResponse(systemPrompt);
+      const response = await this.orchestrator.generateChatResponse(message, context);
 
       return {
         success: true,

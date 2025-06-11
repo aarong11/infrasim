@@ -8,6 +8,8 @@ export enum EntityType {
   SOCIAL_AGENT = 'social_agent',
   API_SERVICE = 'api_service',
   ORGANIZATION = 'organization',
+  DATA_FEED = 'data_feed',
+  EXTERNAL_SOURCE = 'external_source',
 }
 
 export enum FidelityLevel {

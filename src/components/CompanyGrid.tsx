@@ -183,13 +183,6 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
             onChange={(e) => setFilter(e.target.value)}
             className="flex-1 p-3 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400"
           />
-          <button
-            onClick={loadCompanies}
-            className="px-4 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg"
-            title="Refresh companies"
-          >
-            🔄
-          </button>
         </div>
         <p className="text-sm text-gray-400 mt-2">
           Showing {filteredCompanies.length} of {companies.length} companies from vector database

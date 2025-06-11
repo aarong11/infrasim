@@ -9,6 +9,9 @@ import { StructuredToolParser } from '../../tools/parser';
 import { ToolHandlers } from '../../tools/handlers';
 import { InfrastructureEntity, SimulationState, FidelityLevel, EntityType } from '../../types/infrastructure';
 import { ToolAction } from '../../tools/schema';
+import { AddNodeModal } from '../../components/AddNodeModal';
+import { NodeEditorPanel } from '../../components/NodeEditorPanel';
+import { useAppStore } from '../../store/app-store';
 
 interface ChatMessage {
   id: string;
@@ -19,6 +22,8 @@ interface ChatMessage {
 }
 
 export default function InfrastructurePage() {
+  const { setShowSettings } = useAppStore();
+
   // Core services
   const [engine] = useState(() => new SimulationEngine());
   const [vectorService] = useState(() => new ClientVectorMemoryService());
@@ -39,6 +44,8 @@ export default function InfrastructurePage() {
   const [chatInput, setChatInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [chatPanelOpen, setChatPanelOpen] = useState(true);
+  const [showAddNodeModal, setShowAddNodeModal] = useState(false);
+  const [editingEntity, setEditingEntity] = useState<InfrastructureEntity | null>(null);
 
   // Initialize services
   useEffect(() => {
@@ -277,12 +284,111 @@ export default function InfrastructurePage() {
     setSelectedEntity(entity);
   };
 
+  const handleEntityEdit = (entity: InfrastructureEntity) => {
+    setEditingEntity(entity);
+  };
+
+  const handleEntityAdd = (parentEntity: InfrastructureEntity) => {
+    // When adding to a parent entity, we can either show the add modal
+    // or directly create a new entity related to the parent
+    setShowAddNodeModal(true);
+  };
+
   const handleEntityFidelityChange = (id: string, fidelity: FidelityLevel) => {
     engine.updateEntityFidelity(id, fidelity);
   };
 
+  const handleAddNode = (entity: InfrastructureEntity) => {
+    engine.addEntity(entity);
+    setShowAddNodeModal(false);
+  };
+
+  const handleEntityUpdate = (updatedEntity: InfrastructureEntity) => {
+    engine.updateEntity(updatedEntity.id, updatedEntity);
+    setEditingEntity(null);
+  };
+
+  const handleApplyLayout = (newEntities: Record<string, InfrastructureEntity>) => {
+    Object.values(newEntities).forEach(entity => {
+      engine.updateEntity(entity.id, entity);
+    });
+  };
+
+  // Handle entity save from details modal
+  const handleEntitySave = async (updatedEntity: InfrastructureEntity) => {
+    try {
+      // Update entity in simulation engine
+      engine.updateEntity(updatedEntity.id, updatedEntity);
+      
+      // Update vector memory if entity is an organization
+      if (updatedEntity.type === EntityType.ORGANIZATION) {
+        await syncEntityToVectorMemory(updatedEntity);
+      }
+      
+      // Add success message to chat
+      const successMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `✅ Entity "${updatedEntity.name}" updated successfully and synced to vector memory`,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, successMessage]);
+      
+      // Close the details modal
+      setSelectedEntity(null);
+      
+    } catch (error) {
+      console.error('Failed to save entity:', error);
+      
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'assistant',
+        content: `❌ Failed to save entity: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+      
+      // Re-throw to let EntityDetails handle the error state
+      throw error;
+    }
+  };
+
+  // Sync individual entity to vector memory
+  const syncEntityToVectorMemory = async (entity: InfrastructureEntity) => {
+    try {
+      if (entity.type === EntityType.ORGANIZATION) {
+        // Convert entity to company memory record format
+        const companyRecord = {
+          id: entity.id,
+          name: entity.name,
+          description: entity.metadata.description || `${entity.name} organization`,
+          sectorTags: entity.metadata.sectorTags || [],
+          services: entity.metadata.coreFunctions || [],
+          metadata: {
+            ...entity.metadata,
+            hostname: entity.hostname,
+            ip: entity.ip,
+            fidelity: entity.fidelity,
+            lastUpdated: new Date().toISOString()
+          },
+          infrastructure: entity.metadata.internalEntities || [],
+          createdAt: entity.metadata.createdAt ? new Date(entity.metadata.createdAt) : new Date(),
+          updatedAt: new Date()
+        };
+
+        // Update in vector memory
+        await vectorService.updateCompanyInMemory(companyRecord);
+        console.log(`✅ Synced entity ${entity.name} to vector memory`);
+      }
+    } catch (error) {
+      console.error('Vector memory sync failed:', error);
+      throw new Error(`Failed to sync to vector memory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   return (
-    <div className="h-screen flex bg-cyber-dark text-white">
+    <div className="h-screen flex bg-cyber-dark text-white relative">
       {/* Main Infrastructure View */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -316,6 +422,26 @@ export default function InfrastructurePage() {
               </svg>
               <span>{chatPanelOpen ? 'Hide Chat' : 'Show Chat'}</span>
             </button>
+            <button
+              onClick={() => setShowAddNodeModal(true)}
+              className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded flex items-center space-x-2 transition-colors"
+            >
+              <span className="text-lg">➕</span>
+              <span>Add Node</span>
+            </button>
+            
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded flex items-center space-x-2 transition-colors"
+              title="Settings"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-1.162 1.98-1.162 2.28 0a1.5 1.5 0 002.145.978c1.134-.692 2.446.48 1.753 1.613a1.5 1.5 0 00.978 2.146c1.162.301 1.162 1.98 0 2.281a1.5 1.5 0 00-.978 2.146c.693 1.134-.619 2.305-1.753 1.613a1.5 1.5 0 00-2.145.978c-.3 1.162-1.98 1.162-2.28 0a1.5 1.5 0 00-2.145-.978c-1.134.692-2.446-.48-1.753-1.613a1.5 1.5 0 00-.978-2.146c-1.162-.301-1.162-1.98 0-2.281a1.5 1.5 0 00.978-2.146c-.692-1.134.62-2.305 1.753-1.613a1.5 1.5 0 002.145-.978z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Settings</span>
+            </button>
           </div>
         </div>
 
@@ -324,7 +450,11 @@ export default function InfrastructurePage() {
           <InfrastructureMap
             entities={simulationState.entities}
             onEntityClick={handleEntityClick}
+            onEntityEdit={handleEntityEdit}
+            onEntityAdd={handleEntityAdd}
             onEntityFidelityChange={handleEntityFidelityChange}
+            onEntityUpdate={handleEntityUpdate}
+            onEntityDelete={(id) => engine.removeEntity(id)}
           />
         </div>
       </div>
@@ -413,7 +543,31 @@ export default function InfrastructurePage() {
       <EntityDetails
         entity={selectedEntity}
         onClose={() => setSelectedEntity(null)}
+        onSave={handleEntitySave}
       />
+
+      {/* Add Node Modal */}
+      {showAddNodeModal && (
+        <AddNodeModal
+          isOpen={showAddNodeModal}
+          onClose={() => setShowAddNodeModal(false)}
+          onAdd={handleAddNode}
+          existingEntities={simulationState.entities}
+        />
+      )}
+
+      {/* Node Editor Panel */}
+      {editingEntity && (
+        <NodeEditorPanel
+          entity={editingEntity}
+          onClose={() => setEditingEntity(null)}
+          onSave={handleEntityUpdate}
+          onDelete={(id) => {
+            engine.removeEntity(id);
+            setEditingEntity(null);
+          }}
+        />
+      )}
     </div>
   );
 }

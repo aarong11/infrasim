@@ -335,7 +335,8 @@ class ToolHandlers {
   }
 
   async initialize(): Promise<void> {
-    await this.orchestrator.initializeVectorMemory();
+    // Vector memory is automatically initialized in the constructor
+    console.log('✅ Tool system initialized');
   }
 
   async executeAction(action: ToolAction): Promise<ToolExecutionResult> {

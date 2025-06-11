@@ -51,6 +51,19 @@ export class SimulationEngine {
     this.notifyListeners();
   }
 
+  public updateEntity(id: string, updatedEntity: Partial<InfrastructureEntity>): void {
+    const entity = this.state.entities[id];
+    if (entity) {
+      this.state.entities[id] = {
+        ...entity,
+        ...updatedEntity,
+      };
+      this.notifyListeners();
+    } else {
+      console.warn(`Entity with ID ${id} not found.`);
+    }
+  }
+
   public updateEntityFidelity(id: string, fidelity: FidelityLevel): void {
     const entity = this.state.entities[id];
     if (entity) {

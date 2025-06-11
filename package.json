@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"yarn ollama:start\" \"yarn next:dev\"",
+    "dev": "concurrently \"rm -rf .next\" \"yarn ollama:start\" \"yarn next:dev\"",
     "next:dev": "wait-on http://localhost:11434 && next dev",
     "build": "next build",
     "start": "concurrently \"yarn ollama:start\" \"yarn next:start\"",
@@ -14,10 +14,15 @@
     "ollama:setup": "yarn ollama:pull",
     "setup": "yarn install && yarn ollama:setup",
     "seed:companies": "tsx seed/populate-companies.ts",
-    "seed": "yarn seed:companies"
+    "seed": "yarn seed:companies",
+    "reset-vector-db": "tsx reset-vector-db.ts",
+    "reset-vector-db:force": "tsx reset-vector-db.ts --force",
+    "reset-vector-db:quiet": "tsx reset-vector-db.ts --quiet",
+    "clean": "rm -rf .next node_modules && echo 'Cleaned build artifacts and node_modules'"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@langchain/anthropic": "^0.3.21",
     "@langchain/community": "^0.3.45",
     "@langchain/core": "^0.3.57",
     "@types/d3": "^7.4.0",
@@ -32,9 +37,11 @@
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "d3": "^7.8.0",
+    "elkjs": "^0.10.0",
     "faiss-node": "^0.5.1",
     "langchain": "^0.0.190",
     "lodash": "^4.17.0",
+    "lucide-react": "^0.514.0",
     "next": "^14.0.0",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
@@ -53,7 +60,8 @@
     "uuid": "^9.0.1",
     "yaml": "^2.3.0",
     "zod": "^3.25.56",
-    "zod-to-json-schema": "^3.24.5"
+    "zod-to-json-schema": "^3.24.5",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

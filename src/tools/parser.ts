@@ -25,10 +25,10 @@ export class StructuredToolParser {
     // Create structured output parser from Zod schema
     this.parser = StructuredOutputParser.fromZodSchema(ToolActionSchema);
     
-    // Initialize LLM with llama3-groq-tool-use model
+    // Initialize LLM with smangrul/llama-3-8b-instruct-function-calling model
     this.llm = new ChatOllama({
       baseUrl: ollamaBaseUrl,
-      model: 'llama3-groq-tool-use',
+      model: 'smangrul/llama-3-8b-instruct-function-calling',
       temperature: 0.1,
     });
 
@@ -38,20 +38,21 @@ export class StructuredToolParser {
 
   private createParsingChain(): RunnableSequence<any, any> {
     const prompt = PromptTemplate.fromTemplate(`
-You are a JSON parser for infrastructure commands. Parse the user input and respond with valid JSON only.
+You must respond with ONLY valid JSON. No explanations, no markdown, no text - just pure JSON.
 
-RULES:
-1. For adding/creating components: use "modifyInfrastructure" with operation "add"
-2. For updating/changing properties: use "modifyInfrastructure" with operation "update" 
-3. For removing/deleting: use "modifyInfrastructure" with operation "remove"
-4. For connecting components: use "linkEntities"
-5. For greetings/help: use "chat"
+Parse the user input and respond with valid JSON matching this schema:
 
-IMPORTANT: Always extract the component name if mentioned (e.g. "financial analytics", "UserDB", "load balancer")
+For adding/creating components: use "modifyInfrastructure" with operation "add"
+For updating/changing properties: use "modifyInfrastructure" with operation "update" 
+For removing/deleting: use "modifyInfrastructure" with operation "remove"
+For connecting components: use "linkEntities"
+For greetings/help: use "chat"
+
+CRITICAL: Always extract the component name if mentioned (e.g. "financial analytics", "UserDB", "load balancer")
 
 User input: {input}
 
-Respond with JSON only:
+Respond with JSON only - no markdown, no explanations:
 `);
 
     return RunnableSequence.from([
@@ -79,7 +80,7 @@ Respond with JSON only:
       requestId,
       input,
       inputLength: input.length,
-      model: 'llama3-groq-tool-use',
+      model: 'smangrul/llama-3-8b-instruct-function-calling',
       timestamp: new Date().toISOString()
     });
 

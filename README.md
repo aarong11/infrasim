@@ -1,10 +1,3 @@
-aarong11: Please can you go through the code and do a full audit of all API endpoints, where LLMs are used, where schemas are enforced etc. I want to generate a DOCS.md file
-
-Workspace: Collecting workspace informationI'll conduct a comprehensive audit of your InfraSim codebase to generate a detailed documentation file. Let me analyze all the API endpoints, LLM usage, schema enforcement, and architectural patterns.
-
-## DOCS.md
-
-```markdown
 # InfraSim - Infrastructure Simulation Platform Documentation
 
 ## Overview
@@ -64,7 +57,7 @@ Response: { success: boolean, message: string }
 
 ### 1. LangChain Orchestrator (`src/core/langchain-orchestrator.ts`)
 
-**Model**: `llama3-groq-tool-use` (Ollama)
+**Model**: `smangrul/llama-3-8b-instruct-function-calling` (Ollama)
 **Base URL**: `http://localhost:11434` (configurable)
 
 #### LLM Usage Patterns:
@@ -89,7 +82,7 @@ async enhanceEntityDescription(entity: InfrastructureEntity): Promise<string>
 
 ### 2. Structured Tool Parser (`src/tools/parser.ts`)
 
-**Model**: `llama3-groq-tool-use`
+**Model**: `smangrul/llama-3-8b-instruct-function-calling`
 **Purpose**: Natural language command parsing into structured tool actions
 
 ```typescript
@@ -99,7 +92,7 @@ async parseInput(input: string): Promise<ToolParseResult>
 
 ### 3. Company Profile Generator (`src/modules/companies-house/CompanyProfileGenerator.ts`)
 
-**Model**: `llama3-groq-tool-use`
+**Model**: `smangrul/llama-3-8b-instruct-function-calling`
 **Purpose**: Generate realistic company profiles
 
 ```typescript
@@ -109,7 +102,7 @@ async generateCompanyProfile(name: string, description: string): Promise<Company
 
 ### 4. Infrastructure Builder (`src/modules/companies-house/InfrastructureBuilder.ts`)
 
-**Model**: `llama3-groq-tool-use`
+**Model**: `smangrul/llama-3-8b-instruct-function-calling`
 **Purpose**: Generate infrastructure topologies and OpenAPI specifications
 
 ```typescript
@@ -346,7 +339,7 @@ export function generateOpenAPIStub(entity: InfrastructureEntity): Record<string
 ```typescript
 // Default Ollama configuration
 const OLLAMA_BASE_URL = 'http://localhost:11434'
-const DEFAULT_MODEL = 'llama3-groq-tool-use'
+const DEFAULT_MODEL = 'smangrul/llama-3-8b-instruct-function-calling'
 ```
 
 ### Model Configuration
@@ -355,7 +348,7 @@ All LLM instances use consistent configuration:
 ```typescript
 new ChatOllama({
   baseUrl: ollamaBaseUrl,
-  model: 'llama3-groq-tool-use',
+  model: 'smangrul/llama-3-8b-instruct-function-calling',
   temperature: 0.1, // Low temperature for consistency
 });
 ```
@@ -436,7 +429,7 @@ node test-vector-db.js
 
 ### LLM Performance
 
-- **Model Size**: `llama3-groq-tool-use` requires significant resources
+- **Model Size**: `smangrul/llama-3-8b-instruct-function-calling` requires significant resources
 - **Response Time**: Typical 1-5 seconds per LLM call
 - **Concurrency**: Single-threaded LLM processing
 - **Caching**: No response caching implemented
@@ -500,7 +493,7 @@ node test-vector-db.js
 ### Common Issues
 
 1. **Ollama Connection**: Ensure Ollama server is running on port 11434
-2. **Model Download**: Verify `llama3-groq-tool-use` model is available
+2. **Model Download**: Verify `smangrul/llama-3-8b-instruct-function-calling` model is available
 3. **Vector Store**: Check vector-store directory permissions
 4. **Memory Issues**: Monitor RAM usage with large vector databases
 
@@ -529,12 +522,3 @@ DEBUG=langchain:* yarn dev
 | `ToolActionSchema` | Tool commands | schema.ts |
 | `CompanyMemoryRecord` | Vector storage | infrastructure.ts |
 | `OpenApiSpecSchema` | API generation | InfrastructureBuilder.ts |
-
----
-
-*This documentation is automatically generated and should be updated as the codebase evolves.*
-```
-
-This comprehensive audit covers all the key aspects of your InfraSim platform. The documentation includes detailed information about API endpoints, LLM integration points, schema enforcement mechanisms, and architectural patterns. It should serve as a complete reference for developers working with the system.This comprehensive audit covers all the key aspects of your InfraSim platform. The documentation includes detailed information about API endpoints, LLM integration points, schema enforcement mechanisms, and architectural patterns. It should serve as a complete reference for developers working with the system.
-
-Similar code found with 1 license type

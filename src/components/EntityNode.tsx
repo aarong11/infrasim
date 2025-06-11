@@ -9,6 +9,10 @@ interface EntityNodeProps {
     entity: InfrastructureEntity;
     onEntityClick: (entity: InfrastructureEntity) => void;
     onEntityFidelityChange: (id: string, fidelity: FidelityLevel) => void;
+    onEntityDelete?: (id: string) => void;
+    onEntityEdit?: (entity: InfrastructureEntity) => void;
+    onEntityAdd?: (parentEntity: InfrastructureEntity) => void;
+    isSelected?: boolean;
   };
 }
 
@@ -23,6 +27,8 @@ const getEntityIcon = (type: EntityType): string => {
     [EntityType.SOCIAL_AGENT]: '👤',
     [EntityType.API_SERVICE]: '🔌',
     [EntityType.ORGANIZATION]: '🏢',
+    'data_feed': '📡', // New type for data feeds
+    'external_source': '🌍', // New type for external sources
   };
   return icons[type] || '📦';
 };
@@ -37,7 +43,7 @@ const getFidelityColor = (fidelity: FidelityLevel): string => {
 };
 
 export const EntityNode: React.FC<EntityNodeProps> = ({ data }) => {
-  const { entity, onEntityClick, onEntityFidelityChange } = data;
+  const { entity, onEntityClick, onEntityFidelityChange, onEntityDelete, onEntityEdit, onEntityAdd, isSelected } = data;
 
   const cycleFidelity = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -47,34 +53,98 @@ export const EntityNode: React.FC<EntityNodeProps> = ({ data }) => {
     onEntityFidelityChange(entity.id, levels[nextIndex]);
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEntityDelete && confirm(`Are you sure you want to delete "${entity.name}"?`)) {
+      onEntityDelete(entity.id);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEntityEdit) {
+      onEntityEdit(entity);
+    }
+  };
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEntityAdd) {
+      onEntityAdd(entity);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEntityClick(entity);
+  };
+
   return (
     <div
-      className={`px-4 py-2 shadow-lg rounded-lg border-2 cursor-pointer transition-all hover:scale-105 ${getFidelityColor(entity.fidelity)}`}
-      onClick={() => onEntityClick(entity)}
+      className={`relative px-4 py-2 shadow-lg rounded-lg border-2 cursor-pointer transition-all hover:scale-105 min-w-[180px] ${getFidelityColor(entity.fidelity)} ${
+        isSelected ? 'ring-2 ring-cyan-400' : ''
+      }`}
+      onClick={handleClick}
     >
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-cyan-400" />
       
+      {/* Action buttons - positioned at top corners */}
+      <div className="absolute -top-2 -left-2 flex space-x-1">
+        {/* Add button */}
+        {onEntityAdd && (
+          <button
+            onClick={handleAdd}
+            className="w-6 h-6 bg-green-600 hover:bg-green-700 text-white rounded-full text-xs flex items-center justify-center transition-colors"
+            title="Add component"
+          >
+            ➕
+          </button>
+        )}
+        
+        {/* Edit button */}
+        {onEntityEdit && (
+          <button
+            onClick={handleEdit}
+            className="w-6 h-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs flex items-center justify-center transition-colors"
+            title="Edit node"
+          >
+            ✏️
+          </button>
+        )}
+      </div>
+
+      {/* Delete button */}
+      {onEntityDelete && (
+        <button
+          onClick={handleDelete}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 hover:bg-red-700 text-white rounded-full text-xs flex items-center justify-center transition-colors"
+          title="Delete node"
+        >
+          🗑️
+        </button>
+      )}
+      
       <div className="flex items-center space-x-2">
         <span className="text-2xl">{getEntityIcon(entity.type)}</span>
-        <div>
-          <div className="font-bold text-white text-sm">{entity.name}</div>
-          <div className="text-xs text-gray-300">{entity.hostname}</div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-white text-sm truncate">{entity.name}</div>
+          <div className="text-xs text-gray-300 truncate">{entity.hostname}</div>
           <div className="text-xs text-gray-400">{entity.ip}</div>
         </div>
       </div>
       
       <div className="mt-2 flex justify-between items-center">
-        <span className="text-xs text-gray-400">{entity.type}</span>
+        <span className="text-xs text-gray-400 truncate">{entity.type.replace('_', ' ')}</span>
         <button
           onClick={cycleFidelity}
-          className="text-xs px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white"
+          className="text-xs px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
         >
           {entity.fidelity}
         </button>
       </div>
       
       {entity.ports.length > 0 && (
-        <div className="mt-1 text-xs text-gray-400">
+        <div className="mt-1 text-xs text-gray-400 truncate">
           Ports: {entity.ports.map(p => p.number).join(', ')}
         </div>
       )}
@@ -97,6 +167,15 @@ export const EntityNode: React.FC<EntityNodeProps> = ({ data }) => {
               API
             </span>
           )}
+        </div>
+      )}
+
+      {/* Special badge for data feeds */}
+      {(entity.type === 'data_feed' || entity.type === 'external_source') && (
+        <div className="mt-2">
+          <span className="text-xs px-2 py-1 bg-purple-600 text-white rounded">
+            External Data
+          </span>
         </div>
       )}
 

@@ -281,6 +281,27 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ entity, onClose, isExpandi
     setChatMessages(prev => [...prev, message]);
   };
 
+  const handleInternalEntityEdit = (internalEntity: InfrastructureEntity) => {
+    setSelectedInternalEntity(internalEntity);
+    setActiveTab('details');
+  };
+
+  const handleInternalEntityAdd = (parentEntity: InfrastructureEntity) => {
+    // When adding to an internal entity, we could show a modal or use the chat
+    // For now, let's guide the user to use the chat
+    const message = {
+      id: Date.now().toString(),
+      type: 'assistant',
+      content: `💡 To add components to ${parentEntity.name}, try using the chat! For example: "Add a database to connect to ${parentEntity.name}"`,
+      timestamp: new Date()
+    };
+    setChatMessages(prev => [...prev, message]);
+  };
+
+  const handleInternalEntityDelete = (entityId: string) => {
+    handleRemoveEntity(entityId);
+  };
+
   const generateSyntheticLogs = (entity: InfrastructureEntity): LogEntry[] => {
     const baseMessages = [
       'System startup completed',
@@ -566,6 +587,9 @@ export const ZoomModal: React.FC<ZoomModalProps> = ({ entity, onClose, isExpandi
                     entities={internalEntities}
                     onEntityClick={handleInternalEntityClick}
                     onEntityFidelityChange={handleInternalEntityFidelityChange}
+                    onEntityEdit={handleInternalEntityEdit}
+                    onEntityAdd={handleInternalEntityAdd}
+                    onEntityDelete={handleInternalEntityDelete}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">

@@ -23,12 +23,18 @@ interface MiniInfrastructureGraphProps {
   entities: InfrastructureEntity[];
   onEntityClick: (entity: InfrastructureEntity) => void;
   onEntityFidelityChange: (id: string, fidelity: FidelityLevel) => void;
+  onEntityEdit?: (entity: InfrastructureEntity) => void;
+  onEntityAdd?: (parentEntity: InfrastructureEntity) => void;
+  onEntityDelete?: (id: string) => void;
 }
 
 export const MiniInfrastructureGraph: React.FC<MiniInfrastructureGraphProps> = ({
   entities,
   onEntityClick,
   onEntityFidelityChange,
+  onEntityEdit,
+  onEntityAdd,
+  onEntityDelete,
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -43,6 +49,9 @@ export const MiniInfrastructureGraph: React.FC<MiniInfrastructureGraphProps> = (
         entity,
         onEntityClick,
         onEntityFidelityChange,
+        onEntityEdit,
+        onEntityAdd,
+        onEntityDelete,
       },
     }));
 
@@ -64,7 +73,7 @@ export const MiniInfrastructureGraph: React.FC<MiniInfrastructureGraphProps> = (
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [entities, onEntityClick, onEntityFidelityChange, setNodes, setEdges]);
+  }, [entities, onEntityClick, onEntityFidelityChange, onEntityEdit, onEntityAdd, onEntityDelete, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),

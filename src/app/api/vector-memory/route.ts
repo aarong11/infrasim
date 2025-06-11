@@ -1,14 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LangChainOrchestrator } from '../../../core/langchain-orchestrator';
+import { LangChainOrchestrator, ProcessingMode } from '../../../core/langchain-orchestrator';
 import { CompanyMemoryRecord } from '../../../types/infrastructure';
 
-// Server-side orchestrator instance
+// Singleton orchestrator instance
 let orchestrator: LangChainOrchestrator | null = null;
 
-async function getOrchestrator() {
+async function getOrchestrator(): Promise<LangChainOrchestrator> {
   if (!orchestrator) {
     orchestrator = new LangChainOrchestrator();
-    await orchestrator.initializeVectorMemory();
+    
+    // Auto-configure with default models if available
+    try {
+      await orchestrator.configureModels({
+        chatModel: {
+          id: 'llama3.2:latest',
+          name: 'Llama 3.2 Chat',
+          type: 'ollama',
+          processingMode: ProcessingMode.LLAMA_CHAT,
+          temperature: 0.3,
+          description: 'Default chat model for conversations'
+        },
+        toolsModel: {
+          id: 'llama3-groq-tool-use:latest',
+          name: 'Llama 3 Groq Tool Use',
+          type: 'ollama',
+          processingMode: ProcessingMode.OPENAI_TOOLS,
+          temperature: 0.1,
+          description: 'Groq-optimized Llama 3 model for structured tasks and function calling'
+        }
+      });
+      console.log('✅ Auto-configured dual models successfully');
+    } catch (error) {
+      console.warn('⚠️ Could not auto-configure models, will use fallback mode:', error instanceof Error ? error.message : 'Unknown error');
+    }
   }
   return orchestrator;
 }

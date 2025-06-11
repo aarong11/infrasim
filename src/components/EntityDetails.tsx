@@ -6,12 +6,73 @@ import { InfrastructureEntity, LogEntry } from '../types/infrastructure';
 interface EntityDetailsProps {
   entity: InfrastructureEntity | null;
   onClose: () => void;
+  onSave?: (updatedEntity: InfrastructureEntity) => void;
 }
 
-export const EntityDetails: React.FC<EntityDetailsProps> = ({ entity, onClose }) => {
+export const EntityDetails: React.FC<EntityDetailsProps> = ({ entity, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'logs' | 'api'>('overview');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedEntity, setEditedEntity] = useState<InfrastructureEntity | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  if (!entity) return null;
+  // Initialize edited entity when entity changes
+  React.useEffect(() => {
+    if (entity) {
+      setEditedEntity({ ...entity });
+    }
+  }, [entity]);
+
+  if (!entity || !editedEntity) return null;
+
+  const handleSave = async () => {
+    if (!onSave || !editedEntity) return;
+    
+    setIsSaving(true);
+    try {
+      await onSave(editedEntity);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to save entity:', error);
+      // You could add error toast here
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedEntity({ ...entity });
+    setIsEditing(false);
+  };
+
+  const updateEntityField = (field: keyof InfrastructureEntity, value: any) => {
+    setEditedEntity(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const updatePort = (index: number, field: string, value: any) => {
+    setEditedEntity(prev => {
+      if (!prev) return null;
+      const newPorts = [...prev.ports];
+      newPorts[index] = { ...newPorts[index], [field]: value };
+      return { ...prev, ports: newPorts };
+    });
+  };
+
+  const addPort = () => {
+    setEditedEntity(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        ports: [...prev.ports, { number: 80, protocol: 'tcp' as const, service: 'http', status: 'open' as const }]
+      };
+    });
+  };
+
+  const removePort = (index: number) => {
+    setEditedEntity(prev => {
+      if (!prev) return null;
+      return { ...prev, ports: prev.ports.filter((_, i) => i !== index) };
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -44,37 +105,218 @@ export const EntityDetails: React.FC<EntityDetailsProps> = ({ entity, onClose })
 
         {activeTab === 'overview' && (
           <div className="space-y-4">
+            {/* Edit/Save Controls */}
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white">Entity Properties</h3>
+              <div className="flex space-x-2">
+                {onSave && !isEditing ? (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm transition-colors"
+                  >
+                    ✏️ Edit
+                  </button>
+                ) : onSave && isEditing ? (
+                  <>
+                    <button
+                      onClick={handleCancel}
+                      disabled={isSaving}
+                      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaving}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 flex items-center space-x-2"
+                    >
+                      {isSaving && <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>}
+                      <span>💾 Save</span>
+                    </button>
+                  </>
+                ) : !onSave ? (
+                  <div className="text-gray-400 text-sm">
+                    Read-only view
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Basic Info</h3>
-                <div className="space-y-1 text-gray-300">
-                  <p><span className="text-gray-400">Type:</span> {entity.type}</p>
-                  <p><span className="text-gray-400">Hostname:</span> {entity.hostname}</p>
-                  <p><span className="text-gray-400">IP:</span> {entity.ip}</p>
-                  <p><span className="text-gray-400">Fidelity:</span> {entity.fidelity}</p>
+                <h4 className="text-md font-semibold text-white mb-3">Basic Info</h4>
+                <div className="space-y-3">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Name:</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedEntity.name}
+                        onChange={(e) => updateEntityField('name', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
+                      />
+                    ) : (
+                      <span className="text-gray-300">{entity.name}</span>
+                    )}
+                  </div>
+
+                  {/* Type (read-only for now) */}
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Type:</label>
+                    <span className="text-gray-300">{entity.type}</span>
+                  </div>
+
+                  {/* Hostname */}
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Hostname:</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedEntity.hostname}
+                        onChange={(e) => updateEntityField('hostname', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
+                      />
+                    ) : (
+                      <span className="text-gray-300">{entity.hostname}</span>
+                    )}
+                  </div>
+
+                  {/* IP Address */}
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">IP Address:</label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedEntity.ip}
+                        onChange={(e) => updateEntityField('ip', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
+                        placeholder="192.168.1.1"
+                      />
+                    ) : (
+                      <span className="text-gray-300">{entity.ip}</span>
+                    )}
+                  </div>
+
+                  {/* Fidelity */}
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Fidelity:</label>
+                    {isEditing ? (
+                      <select
+                        value={editedEntity.fidelity}
+                        onChange={(e) => updateEntityField('fidelity', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
+                      >
+                        <option value="virtual">Virtual</option>
+                        <option value="semi_real">Semi Real</option>
+                        <option value="concrete">Concrete</option>
+                      </select>
+                    ) : (
+                      <span className="text-gray-300">{entity.fidelity}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Ports</h3>
-                <div className="space-y-1">
-                  {entity.ports.map((port, idx) => (
-                    <div key={idx} className="text-gray-300 text-sm">
-                      {port.number}/{port.protocol} - {port.service} ({port.status})
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-md font-semibold text-white">Ports</h4>
+                  {isEditing && (
+                    <button
+                      onClick={addPort}
+                      className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                    >
+                      + Add Port
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {editedEntity.ports.map((port, idx) => (
+                    <div key={idx} className={`${isEditing ? 'bg-gray-700 p-3 rounded' : ''}`}>
+                      {isEditing ? (
+                        <div className="grid grid-cols-4 gap-2 items-center">
+                          <input
+                            type="number"
+                            value={port.number}
+                            onChange={(e) => updatePort(idx, 'number', parseInt(e.target.value) || 80)}
+                            className="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-xs focus:border-cyan-400 focus:outline-none"
+                            placeholder="Port"
+                          />
+                          <select
+                            value={port.protocol}
+                            onChange={(e) => updatePort(idx, 'protocol', e.target.value)}
+                            className="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-xs focus:border-cyan-400 focus:outline-none"
+                          >
+                            <option value="tcp">TCP</option>
+                            <option value="udp">UDP</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={port.service}
+                            onChange={(e) => updatePort(idx, 'service', e.target.value)}
+                            className="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-xs focus:border-cyan-400 focus:outline-none"
+                            placeholder="Service"
+                          />
+                          <div className="flex space-x-1">
+                            <select
+                              value={port.status}
+                              onChange={(e) => updatePort(idx, 'status', e.target.value)}
+                              className="bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-xs focus:border-cyan-400 focus:outline-none flex-1"
+                            >
+                              <option value="open">Open</option>
+                              <option value="closed">Closed</option>
+                              <option value="filtered">Filtered</option>
+                            </select>
+                            <button
+                              onClick={() => removePort(idx)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-gray-300 text-sm">
+                          {port.number}/{port.protocol} - {port.service} ({port.status})
+                        </div>
+                      )}
                     </div>
                   ))}
+                  {editedEntity.ports.length === 0 && (
+                    <div className="text-gray-400 text-sm">No ports configured</div>
+                  )}
                 </div>
               </div>
             </div>
             
-            {Object.keys(entity.metadata).length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Metadata</h3>
-                <pre className="bg-gray-900 p-3 rounded text-gray-300 text-sm overflow-x-auto">
-                  {JSON.stringify(entity.metadata, null, 2)}
-                </pre>
-              </div>
-            )}
+            {/* Metadata Section */}
+            <div>
+              <h4 className="text-md font-semibold text-white mb-3">Metadata</h4>
+              {isEditing ? (
+                <textarea
+                  value={JSON.stringify(editedEntity.metadata, null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      updateEntityField('metadata', parsed);
+                    } catch (error) {
+                      // Keep the text as is if it's not valid JSON yet
+                    }
+                  }}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none font-mono"
+                  rows={8}
+                  placeholder="Enter valid JSON metadata..."
+                />
+              ) : (
+                Object.keys(entity.metadata).length > 0 ? (
+                  <pre className="bg-gray-900 p-3 rounded text-gray-300 text-sm overflow-x-auto">
+                    {JSON.stringify(entity.metadata, null, 2)}
+                  </pre>
+                ) : (
+                  <div className="text-gray-400 text-sm">No metadata available</div>
+                )
+              )}
+            </div>
           </div>
         )}
 
