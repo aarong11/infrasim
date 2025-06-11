@@ -1,5 +1,7 @@
 # InfraSim - Infrastructure Simulation Platform Documentation
 
+> ☕ **Support the Developer**: If you find this project helpful, please consider supporting: [Ko-fi.com/rng](https://ko-fi.com/rng)
+
 ## Overview
 
 InfraSim is a sophisticated infrastructure simulation platform that uses Large Language Models (LLMs) and vector databases to create, manage, and simulate complex infrastructure environments. The platform leverages structured tool calling, vector memory management, and real-time API generation capabilities.
