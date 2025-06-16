@@ -1,0 +1,55 @@
+{
+  "pluginName": "callExternalAPI",
+  "version": "1.0.0",
+  "description": "Make secure HTTP requests to external APIs with comprehensive error handling",
+  "executionContext": "container",
+  "parameters": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "API endpoint URL",
+      "validation": {
+        "pattern": "^https?://.+"
+      }
+    },
+    "method": {
+      "type": "string",
+      "required": false,
+      "default": "GET",
+      "description": "HTTP method",
+      "validation": {
+        "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+      }
+    },
+    "headers": {
+      "type": "object",
+      "required": false,
+      "description": "HTTP headers",
+      "default": {}
+    },
+    "body": {
+      "type": "object",
+      "required": false,
+      "description": "Request body for POST/PUT requests",
+      "default": null
+    },
+    "timeout": {
+      "type": "number",
+      "required": false,
+      "default": 10000,
+      "description": "Request timeout in milliseconds"
+    }
+  },
+  "inlineCode": "async function callExternalAPI(url, method = 'GET', headers = {}, body = null, timeout = 10000) {\n  const fetch = require('node-fetch');\n  const AbortController = require('abort-controller');\n  \n  const controller = new AbortController();\n  const timeoutId = setTimeout(() => controller.abort(), timeout);\n  \n  try {\n    const options = {\n      method,\n      headers: {\n        'Content-Type': 'application/json',\n        'User-Agent': 'InfraSim-Plugin/1.0',\n        ...headers\n      },\n      signal: controller.signal\n    };\n    \n    if (body && ['POST', 'PUT', 'PATCH'].includes(method)) {\n      options.body = JSON.stringify(body);\n    }\n    \n    const response = await fetch(url, options);\n    clearTimeout(timeoutId);\n    \n    let responseData;\n    const contentType = response.headers.get('content-type');\n    \n    if (contentType && contentType.includes('application/json')) {\n      responseData = await response.json();\n    } else {\n      responseData = await response.text();\n    }\n    \n    return {\n      success: response.ok,\n      status: response.status,\n      statusText: response.statusText,\n      data: responseData,\n      headers: Object.fromEntries(response.headers),\n      url: url,\n      method: method,\n      timestamp: new Date().toISOString()\n    };\n  } catch (error) {\n    clearTimeout(timeoutId);\n    return {\n      success: false,\n      error: error.message,\n      errorType: error.name,\n      url: url,\n      method: method,\n      timestamp: new Date().toISOString()\n    };\n  }\n}",
+  "dependencies": ["node-fetch", "abort-controller"],
+  "timeout": 30000,
+  "retries": 2,
+  "metadata": {
+    "category": "network",
+    "tags": ["api", "http", "external", "integration"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

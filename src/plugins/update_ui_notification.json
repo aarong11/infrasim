@@ -1,0 +1,32 @@
+{
+  "pluginName": "update_ui_notification",
+  "description": "Display a notification in the browser UI",
+  "executionContext": "browser",
+  "parameters": {
+    "message": {
+      "type": "string",
+      "required": true,
+      "description": "The notification message to display"
+    },
+    "type": {
+      "type": "string",
+      "required": false,
+      "default": "info",
+      "description": "Notification type: info, success, warning, error"
+    },
+    "duration": {
+      "type": "number",
+      "required": false,
+      "default": 5000,
+      "description": "Duration in milliseconds"
+    }
+  },
+  "inlineCode": "function update_ui_notification({ message, type = 'info', duration = 5000 }) { const notification = document.createElement('div'); notification.className = `notification notification-${type}`; notification.style.cssText = 'position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; color: white; z-index: 10000; font-family: Arial, sans-serif; max-width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'; const colors = { info: '#3b82f6', success: '#10b981', warning: '#f59e0b', error: '#ef4444' }; notification.style.backgroundColor = colors[type] || colors.info; notification.textContent = message; document.body.appendChild(notification); setTimeout(() => { if (notification.parentNode) { notification.parentNode.removeChild(notification); } }, duration); return { success: true, message: `Notification displayed: ${message}`, type, duration }; }",
+  "version": "1.0.0",
+  "dependencies": [],
+  "timeout": 5000,
+  "metadata": {
+    "category": "ui",
+    "author": "system"
+  }
+}

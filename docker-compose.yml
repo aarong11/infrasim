@@ -1,0 +1,92 @@
+version: '3.8'
+
+networks:
+  infrasim-network:
+    driver: bridge
+
+services:
+  # Web Application (Next.js)
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: infrasim-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - ETHEREUM_RPC_URL=http://ethereum-sim:8545
+    volumes:
+      - ./data:/app/data
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - ollama
+      - ethereum-sim
+    restart: unless-stopped
+    networks:
+      - infrasim-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Ollama AI Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: infrasim-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    networks:
+      - infrasim-network
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Ollama Model Initializer
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: infrasim-ollama-init
+    depends_on:
+      - ollama
+    volumes:
+      - ./scripts/init-ollama.sh:/init-ollama.sh
+    command: /init-ollama.sh
+    networks:
+      - infrasim-network
+    restart: "no"
+
+  # Ethereum Simulation Environment
+  ethereum-sim:
+    build: ./ethereum
+    container_name: infrasim-ethereum
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./ethereum/data:/data
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+    networks:
+      - infrasim-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  ollama-data:
+    driver: local

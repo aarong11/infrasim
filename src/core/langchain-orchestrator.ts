@@ -4,12 +4,18 @@ import { RunnableSequence } from '@langchain/core/runnables';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import { EntityType, InfrastructureEntity, FidelityLevel, CompanyMemoryRecord } from '../types/infrastructure';
+import { ProcessingMode } from '../types/models';
 import { VectorMemoryManager } from './vector-memory-manager';
 import { DualModelManager, ModelRole, ModelConfig, ModelInstance } from './model-manager';
+import { getPluginManager } from './plugin-manager';
+import { ExecutionEnvironment } from './plugin-system';
 import { useAppStore } from '../store/app-store';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+
+// Export the shared types for other modules to use
+export { ProcessingMode, ModelRole };
 
 // Enhanced retry configuration for Llama models
 interface RetryConfig {
@@ -25,15 +31,6 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxDelay: 5000,
   backoffMultiplier: 2
 };
-
-// Processing modes for different model types
-export enum ProcessingMode {
-  LLAMA_CHAT = 'llama_chat',           // Llama models with chat formatting
-  OPENAI_TOOLS = 'openai_tools',       // OpenAI-style function calling
-  GROQ_TOOLS = 'groq_tools',           // Groq-optimized tool calling
-  STRUCTURED_OUTPUT = 'structured_output', // Traditional structured output parsing
-  AUTO_DETECT = 'auto_detect'          // Auto-detect based on model name
-}
 
 // Model configuration mapping - keeping for backward compatibility
 interface LegacyModelConfig {
@@ -275,8 +272,8 @@ export class LangChainOrchestrator {
     this.organizationParser = StructuredOutputParser.fromZodSchema(OrganizationProfileSchema);
     this.descriptionParser = StructuredOutputParser.fromZodSchema(EntityDescriptionSchema);
 
-    // Use singleton instance
-    this.vectorMemory = VectorMemoryManager.getInstance(ollamaBaseUrl);
+    // Use client-safe vector memory service
+    this.vectorMemory = new VectorMemoryManager(ollamaBaseUrl);
 
     console.log('✅ LangChain Orchestrator initialized with dual model support');
   }
@@ -598,22 +595,32 @@ Return the result as valid JSON matching the ParsedInfrastructure schema.
       const result = await chain.invoke({ description });
       const duration = Date.now() - startTime;
 
-      console.log('✅ OpenAI-style infrastructure parsing successful', {
-        requestId,
-        duration: `${duration}ms`,
-        entitiesCount: result.entities?.length || 0,
-        connectionsCount: result.connections?.length || 0
-      });
+      // Log the LLM interaction
+      this.logLLMInteraction(
+        toolsModel.name,
+        'ollama',
+        'Infrastructure parsing',
+        '',
+        'parsing',
+        duration,
+        undefined,
+        {
+          requestId,
+          duration: `${duration}ms`,
+          entitiesCount: (result as any)?.entities?.length || 0,
+          connectionsCount: (result as any)?.connections?.length || 0
+        }
+      );
 
       return {
-        entities: result.entities?.map((entity: any) => ({
+        entities: (result as any)?.entities?.map((entity: any) => ({
           name: entity.name,
           type: this.mapStringToEntityType(entity.type),
           hostname: entity.hostname,
           ports: entity.ports || [],
           metadata: entity.metadata || { description: '' },
         })) || [],
-        connections: result.connections?.map((conn: any) => ({
+        connections: (result as any)?.connections?.map((conn: any) => ({
           from: conn.from || '',
           to: conn.to || ''
         })).filter((conn: any) => conn.from && conn.to) || [],
@@ -793,80 +800,23 @@ Description to parse: ${description}`;
     console.log('🔧 Using fallback parsing for:', description.substring(0, 100));
     
     const entities: Partial<InfrastructureEntity>[] = [];
-    const lowerDesc = description.toLowerCase();
     
-    // Banking infrastructure
-    if (lowerDesc.includes('bank') || lowerDesc.includes('financial')) {
-      entities.push({
-        name: 'Banking Web Portal',
-        type: EntityType.WEB_APP,
-        hostname: 'portal.bank.local',
-        ports: [{ number: 443, protocol: 'tcp', service: 'https', status: 'open' }],
-        metadata: { description: 'Customer-facing web portal for banking services' }
-      });
-      
-      entities.push({
-        name: 'Core Banking Database',
-        type: EntityType.DATABASE,
-        hostname: 'coredb.bank.local',
-        ports: [{ number: 5432, protocol: 'tcp', service: 'postgresql', status: 'open' }],
-        metadata: { description: 'Primary database for banking transactions and customer data' }
-      });
-      
-      entities.push({
-        name: 'Security Firewall',
-        type: EntityType.FIREWALL,
-        hostname: 'firewall.bank.local',
-        ports: [{ number: 22, protocol: 'tcp', service: 'ssh', status: 'open' }],
-        metadata: { description: 'Network security firewall protecting banking infrastructure' }
-      });
-    }
+    // Generic infrastructure components - no industry-specific logic
+    entities.push({
+      name: 'Web Server',
+      type: EntityType.WEB_APP,
+      hostname: 'web.company.local',
+      ports: [{ number: 80, protocol: 'tcp', service: 'http', status: 'open' }],
+      metadata: { description: 'Main web server hosting company website' }
+    });
     
-    // Technology/Software infrastructure
-    else if (lowerDesc.includes('tech') || lowerDesc.includes('software') || lowerDesc.includes('app')) {
-      entities.push({
-        name: 'Application Server',
-        type: EntityType.WEB_APP,
-        hostname: 'app.company.local',
-        ports: [{ number: 8080, protocol: 'tcp', service: 'http', status: 'open' }],
-        metadata: { description: 'Main application server hosting business logic' }
-      });
-      
-      entities.push({
-        name: 'API Gateway',
-        type: EntityType.API_SERVICE,
-        hostname: 'api.company.local',
-        ports: [{ number: 443, protocol: 'tcp', service: 'https', status: 'open' }],
-        metadata: { description: 'API gateway for external integrations' }
-      });
-      
-      entities.push({
-        name: 'Load Balancer',
-        type: EntityType.LOAD_BALANCER,
-        hostname: 'lb.company.local',
-        ports: [{ number: 80, protocol: 'tcp', service: 'http', status: 'open' }],
-        metadata: { description: 'Load balancer distributing traffic across application servers' }
-      });
-    }
-    
-    // Default infrastructure
-    else {
-      entities.push({
-        name: 'Web Server',
-        type: EntityType.WEB_APP,
-        hostname: 'web.company.local',
-        ports: [{ number: 80, protocol: 'tcp', service: 'http', status: 'open' }],
-        metadata: { description: 'Main web server hosting company website' }
-      });
-      
-      entities.push({
-        name: 'Database Server',
-        type: EntityType.DATABASE,
-        hostname: 'db.company.local',
-        ports: [{ number: 3306, protocol: 'tcp', service: 'mysql', status: 'open' }],
-        metadata: { description: 'Database server storing application data' }
-      });
-    }
+    entities.push({
+      name: 'Database Server',
+      type: EntityType.DATABASE,
+      hostname: 'db.company.local',
+      ports: [{ number: 3306, protocol: 'tcp', service: 'mysql', status: 'open' }],
+      metadata: { description: 'Database server storing application data' }
+    });
 
     // Create basic connections between entities
     const connections = [];
@@ -876,88 +826,40 @@ Description to parse: ${description}`;
         to: entities[1].hostname || ''
       });
     }
-
+    
     console.log('✅ Fallback parsing complete:', {
       entitiesGenerated: entities.length,
       connectionsGenerated: connections.length
     });
-
     return { entities, connections };
   }
 
   /**
-   * Enhanced chat response using the chat model
+   * Generate a simple chat response using the appropriate model
    */
   public async generateChatResponse(userMessage: string, context?: any): Promise<string> {
-    const requestId = Math.random().toString(36).substr(2, 9);
-    const startTime = Date.now();
-    
     try {
-      console.log('💬 Generating chat response', {
-        requestId,
-        messageLength: userMessage.length,
-        timestamp: new Date().toISOString()
-      });
+      // Try to use chat model, fallback to tools model
+      let chatModel: ModelInstance;
+      try {
+        chatModel = this.modelManager.getModel(ModelRole.CHAT);
+      } catch (error) {
+        chatModel = this.modelManager.getModel(ModelRole.TOOLS);
+      }
 
-      const chatModel = this.modelManager.getModel(ModelRole.CHAT);
+      // Create a simple, focused system message
+      const systemMessage = `You are an intelligent infrastructure assistant. Help users with infrastructure design, analysis, and management questions.`;
       
-      const systemMessage = `You are an intelligent infrastructure assistant helping users design, analyze, and understand IT infrastructure. 
-      
-You can help with:
-- Explaining infrastructure components and their relationships
-- Suggesting improvements to existing setups
-- Answering questions about networks, servers, and security
-- Providing guidance on best practices
-
-Be helpful, concise, and technical when appropriate. If you need more context about the user's infrastructure, ask specific questions.`;
-
       const formattedPrompt = chatModel.promptFormatter.formatChatPrompt(systemMessage, userMessage);
-      
       const result = await chatModel.llm.invoke(formattedPrompt);
       const rawResponse = typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
-      const duration = Date.now() - startTime;
       
-      const cleanedResponse = chatModel.responseParser.parseChatResponse(rawResponse);
-
-      // Log the chat interaction
-      this.logLLMInteraction(
-        chatModel.name,
-        'ollama', // Use hardcoded provider for now since ModelInstance doesn't have type
-        formattedPrompt,
-        rawResponse,
-        'chat',
-        duration,
-        undefined,
-        { requestId, userMessage: userMessage.substring(0, 100), context }
-      );
-
-      console.log('✅ Chat response generated successfully', {
-        requestId,
-        responseLength: cleanedResponse.length,
-        duration: `${duration}ms`
-      });
-
-      return cleanedResponse;
-
+      return chatModel.responseParser.parseChatResponse(rawResponse);
     } catch (error) {
-      const duration = Date.now() - startTime;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('⚠️ Chat model failed, using simple fallback response');
       
-      // Log the failed chat attempt
-      this.logLLMInteraction(
-        'Unknown',
-        'fallback',
-        userMessage,
-        '',
-        'chat',
-        duration,
-        errorMessage,
-        { requestId, fallback: true }
-      );
-
-      console.warn('⚠️ Chat model not configured, using fallback response', errorMessage);
-
-      return "I'm here to help with your infrastructure! You can ask me to add components, update configurations, or describe your current setup. What would you like to work on?";
+      // Simple fallback response
+      return "I'm here to help with your infrastructure! I can assist with creating companies, designing infrastructure, generating APIs, and answering questions about your setup. What would you like to work on?";
     }
   }
 
@@ -1003,6 +905,56 @@ Be helpful, concise, and technical when appropriate. If you need more context ab
       sectorTags = this.extractSectorTags(description);
     }
 
+    // Generate internal infrastructure entities using LLM
+    let internalEntities: Partial<InfrastructureEntity>[] = [];
+    try {
+      console.log(`🔧 Generating internal infrastructure for ${orgName}`);
+      
+      // Create a description for infrastructure generation
+      const infrastructureDescription = `Generate internal infrastructure components for ${orgName}, a ${businessDescription}. 
+        Core functions: ${coreFunctions.join(', ')}. 
+        Sector: ${sectorTags.join(', ')}.
+        
+        Create appropriate infrastructure components like web applications, databases, API services, load balancers, firewalls, etc. 
+        that would be needed to support the core business functions.`;
+
+      const parsedInfrastructure = await this.parseInfrastructureDescription(infrastructureDescription);
+      
+      // Convert parsed entities to full InfrastructureEntity objects with proper IDs and positions
+      internalEntities = parsedInfrastructure.entities.map((entity, index) => ({
+        ...entity,
+        id: uuidv4(),
+        fidelity: FidelityLevel.VIRTUAL,
+        position: { 
+          x: 200 + (index % 3) * 250, 
+          y: 200 + Math.floor(index / 3) * 150 
+        },
+        connections: [],
+        logs: []
+      }));
+
+      // Create connections between entities based on parsed connections
+      parsedInfrastructure.connections.forEach(conn => {
+        const fromEntity = internalEntities.find(e => e.hostname === conn.from);
+        const toEntity = internalEntities.find(e => e.hostname === conn.to);
+        
+        if (fromEntity && toEntity && fromEntity.id && toEntity.id) {
+          if (!fromEntity.connections) fromEntity.connections = [];
+          if (!fromEntity.connections.includes(toEntity.id)) {
+            fromEntity.connections.push(toEntity.id);
+          }
+        }
+      });
+
+      console.log(`✅ Generated ${internalEntities.length} internal entities with ${parsedInfrastructure.connections.length} connections`);
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to generate internal infrastructure, using fallback entities', error instanceof Error ? error.message : 'Unknown error');
+      
+      // Fallback to basic internal entities
+      internalEntities = this.generateFallbackInternalEntities(orgName, businessDescription, sectorTags);
+    }
+
     // Create memory record for this new organization
     await this.addCompanyToMemory({
       name: orgName,
@@ -1026,7 +978,7 @@ Be helpful, concise, and technical when appropriate. If you need more context ab
       metadata: {
         description: businessDescription,
         coreFunctions: coreFunctions,
-        internalEntities: [],
+        internalEntities: internalEntities as InfrastructureEntity[], // Include the generated internal entities
         similarCompanies: similarCompanies.map(c => c.record.name),
         memoryEnhanced: true,
         processingMode: this.modelManager.getModelsInfo().tools?.processingMode || 'fallback'
@@ -1122,8 +1074,6 @@ Be helpful, concise, and technical when appropriate. If you need more context ab
   }
 
   private extractBusinessDescription(originalDescription: string, extractedName: string): string {
-    const lowerDesc = originalDescription.toLowerCase();
-    
     // Remove the company name and common prefixes from the description
     let cleanDesc = originalDescription
       .replace(new RegExp(extractedName, 'gi'), '')
@@ -1138,20 +1088,6 @@ Be helpful, concise, and technical when appropriate. If you need more context ab
       cleanDesc = afterThat[1];
     }
     
-    // Generate a professional description based on sector
-    let sectorDesc = '';
-    if (lowerDesc.includes('bank') || lowerDesc.includes('financial')) {
-      sectorDesc = 'A modern financial institution offering';
-    } else if (lowerDesc.includes('tech') || lowerDesc.includes('software')) {
-      sectorDesc = 'A technology company specializing in';
-    } else if (lowerDesc.includes('health') || lowerDesc.includes('medical')) {
-      sectorDesc = 'A healthcare organization providing';
-    } else if (lowerDesc.includes('logistics') || lowerDesc.includes('delivery')) {
-      sectorDesc = 'A logistics company focused on';
-    } else {
-      sectorDesc = 'A business organization specializing in';
-    }
-    
     // Clean up and format the extracted services/features
     if (cleanDesc) {
       cleanDesc = cleanDesc
@@ -1160,58 +1096,21 @@ Be helpful, concise, and technical when appropriate. If you need more context ab
         .trim();
       
       if (cleanDesc) {
-        return `${sectorDesc} ${cleanDesc}.`;
+        return `A business organization specializing in ${cleanDesc}.`;
       }
-    }
-    
-    // Fallback descriptions
-    if (lowerDesc.includes('bank')) {
-      return 'A modern financial institution offering digital banking, payment processing, and financial services.';
-    } else if (lowerDesc.includes('tech')) {
-      return 'A technology company developing innovative software solutions and digital services.';
-    } else if (lowerDesc.includes('health')) {
-      return 'A healthcare organization providing medical services, patient care, and health management solutions.';
-    } else if (lowerDesc.includes('logistics')) {
-      return 'A logistics company specializing in supply chain management, delivery services, and transportation solutions.';
     }
     
     return 'A business organization providing professional services and solutions to clients.';
   }
 
   private extractCoreFunctions(description: string): string[] {
-    const functions = [];
-    const lowerDesc = description.toLowerCase();
-    
-    if (lowerDesc.includes('bank') || lowerDesc.includes('financial')) {
-      functions.push('Banking Services', 'Financial Management', 'Customer Support');
-    } else if (lowerDesc.includes('logistics') || lowerDesc.includes('delivery')) {
-      functions.push('Logistics Management', 'Supply Chain', 'Delivery Services');
-    } else if (lowerDesc.includes('tech') || lowerDesc.includes('software')) {
-      functions.push('Software Development', 'Technical Support', 'System Management');
-    } else {
-      functions.push('Core Operations', 'Customer Service', 'Management');
-    }
-    
-    return functions;
+    // Generic fallback functions without hardcoded industry logic
+    return ['Core Operations', 'Customer Service', 'Management'];
   }
 
   private extractSectorTags(description: string): string[] {
-    const tags = [];
-    const lowerDesc = description.toLowerCase();
-    
-    if (lowerDesc.includes('bank') || lowerDesc.includes('financial')) {
-      tags.push('🏦 Banking', '💰 Finance');
-    } else if (lowerDesc.includes('logistics') || lowerDesc.includes('delivery')) {
-      tags.push('🚚 Logistics', '📦 Supply Chain');
-    } else if (lowerDesc.includes('tech') || lowerDesc.includes('software')) {
-      tags.push('💻 Technology', '⚙️ Software');
-    } else if (lowerDesc.includes('defense') || lowerDesc.includes('security')) {
-      tags.push('🛡️ Defense', '🔒 Security');
-    } else {
-      tags.push('🏢 Business', '⚡ Services');
-    }
-    
-    return tags;
+    // Generic fallback tags without hardcoded industry logic
+    return ['🏢 Business', '⚡ Services'];
   }
 
   private generateSectorTags(sector: string): string[] {
@@ -1234,5 +1133,85 @@ Be helpful, concise, and technical when appropriate. If you need more context ab
     }
     
     return ['🏢 Business', '⚡ Services'];
+  }
+
+  /**
+   * Generate fallback internal entities when LLM infrastructure generation fails
+   */
+  private generateFallbackInternalEntities(orgName: string, businessDescription: string, sectorTags: string[]): Partial<InfrastructureEntity>[] {
+    const baseName = orgName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const entities: Partial<InfrastructureEntity>[] = [];
+    
+    // Generic business infrastructure - no industry-specific logic
+    entities.push({
+      id: uuidv4(),
+      type: EntityType.WEB_APP,
+      name: `${orgName} Web Portal`,
+      hostname: `web.${baseName}.local`,
+      ip: '10.0.1.10',
+      fidelity: FidelityLevel.VIRTUAL,
+      ports: [
+        { number: 80, protocol: 'tcp', service: 'http', status: 'open' },
+        { number: 443, protocol: 'tcp', service: 'https', status: 'open' }
+      ],
+      metadata: { description: 'Main web application portal' },
+      position: { x: 200, y: 150 },
+      connections: [],
+      logs: []
+    });
+
+    entities.push({
+      id: uuidv4(),
+      type: EntityType.DATABASE,
+      name: `${orgName} Database`,
+      hostname: `db.${baseName}.local`,
+      ip: '10.0.1.20',
+      fidelity: FidelityLevel.VIRTUAL,
+      ports: [
+        { number: 5432, protocol: 'tcp', service: 'postgresql', status: 'open' }
+      ],
+      metadata: { description: 'Primary database server' },
+      position: { x: 450, y: 250 },
+      connections: [],
+      logs: []
+    });
+
+    entities.push({
+      id: uuidv4(),
+      type: EntityType.API_SERVICE,
+      name: `${orgName} API`,
+      hostname: `api.${baseName}.local`,
+      ip: '10.0.1.30',
+      fidelity: FidelityLevel.VIRTUAL,
+      ports: [
+        { number: 8080, protocol: 'tcp', service: 'http-api', status: 'open' }
+      ],
+      metadata: { description: 'Business API services' },
+      position: { x: 300, y: 350 },
+      connections: [],
+      logs: []
+    });
+
+    // Create basic connections between entities
+    if (entities.length >= 2) {
+      // Connect web portal to database
+      const webEntity = entities.find(e => e.type === EntityType.WEB_APP);
+      const dbEntity = entities.find(e => e.type === EntityType.DATABASE);
+      
+      if (webEntity && dbEntity && webEntity.id && dbEntity.id) {
+        if (!webEntity.connections) webEntity.connections = [];
+        webEntity.connections.push(dbEntity.id);
+      }
+
+      // Connect API to database
+      const apiEntity = entities.find(e => e.type === EntityType.API_SERVICE);
+      if (apiEntity && dbEntity && apiEntity.id && dbEntity.id) {
+        if (!apiEntity.connections) apiEntity.connections = [];
+        apiEntity.connections.push(dbEntity.id);
+      }
+    }
+
+    console.log(`🔄 Generated ${entities.length} fallback internal entities for ${orgName}`);
+    return entities;
   }
 }

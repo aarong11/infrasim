@@ -1,0 +1,31 @@
+{
+  "pluginName": "generateChatResponse",
+  "version": "1.0.0",
+  "description": "Generate AI chat responses using the configured LLM models with context awareness",
+  "executionContext": "server",
+  "parameters": {
+    "message": {
+      "type": "string",
+      "required": true,
+      "description": "User message to generate response for"
+    },
+    "context": {
+      "type": "object",
+      "required": false,
+      "description": "Optional context for the conversation",
+      "default": {}
+    }
+  },
+  "inlineCode": "async function generateChatResponse(message, context = {}) {\n  try {\n    const response = await fetch('/api/vector-memory', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        action: 'generateChatResponse',\n        message: message,\n        context: context\n      })\n    });\n    \n    if (!response.ok) {\n      throw new Error(`HTTP error! status: ${response.status}`);\n    }\n    \n    const result = await response.json();\n    \n    if (!result.success) {\n      throw new Error(result.error || 'Failed to generate chat response');\n    }\n    \n    return {\n      success: true,\n      response: result.response,\n      originalMessage: message,\n      contextUsed: context,\n      message: `Generated AI response for: '${message.substring(0, 50)}${message.length > 50 ? '...' : ''}'`,\n      timestamp: new Date().toISOString()\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: error.message,\n      timestamp: new Date().toISOString()\n    };\n  }\n}",
+  "dependencies": [],
+  "timeout": 30000,
+  "retries": 2,
+  "metadata": {
+    "category": "vector-memory",
+    "tags": ["chat", "ai", "llm", "response", "generation"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

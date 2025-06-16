@@ -71,7 +71,7 @@ export class LangChainInfrastructureAgent {
     });
 
     this.orchestrator = new LangChainOrchestrator(config.ollamaBaseUrl);
-    this.vectorMemory = VectorMemoryManager.getInstance(config.ollamaBaseUrl);
+    this.vectorMemory = new VectorMemoryManager(config.ollamaBaseUrl);
     
     // Initialize LLM based on provider
     this.llm = this.initializeLLM(config);
@@ -404,9 +404,7 @@ export class LangChainInfrastructureAgent {
       return 'ollama';
     } else if (this.llm.constructor.name.includes('OpenAI')) {
       return 'openai';
-    } else if (this.llm.constructor.name.includes('Anthropic')) {
-      return 'anthropic';
-    }
+    } else if (this.llm.constructor.name.includes('Anthropic')) return 'anthropic';
     return 'unknown';
   }
 

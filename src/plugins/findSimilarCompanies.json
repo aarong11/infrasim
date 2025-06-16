@@ -1,0 +1,31 @@
+{
+  "pluginName": "findSimilarCompanies",
+  "version": "1.0.0",
+  "description": "Find companies similar to a specific company using vector similarity search",
+  "executionContext": "server",
+  "parameters": {
+    "companyId": {
+      "type": "string",
+      "required": true,
+      "description": "ID of the company to find similar companies for"
+    },
+    "limit": {
+      "type": "number",
+      "required": false,
+      "default": 5,
+      "description": "Maximum number of similar companies to return"
+    }
+  },
+  "inlineCode": "async function findSimilarCompanies(companyId, limit = 5) {\n  try {\n    const response = await fetch('/api/vector-memory', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        action: 'findSimilarCompanies',\n        companyId: companyId,\n        limit: limit\n      })\n    });\n    \n    if (!response.ok) {\n      throw new Error(`HTTP error! status: ${response.status}`);\n    }\n    \n    const result = await response.json();\n    \n    if (!result.success) {\n      throw new Error(result.error || 'Failed to find similar companies');\n    }\n    \n    return {\n      success: true,\n      similarCompanies: result.results,\n      totalFound: result.results.length,\n      sourceCompanyId: companyId,\n      message: `Found ${result.results.length} companies similar to ${companyId}`,\n      timestamp: new Date().toISOString()\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: error.message,\n      timestamp: new Date().toISOString()\n    };\n  }\n}",
+  "dependencies": [],
+  "timeout": 15000,
+  "retries": 2,
+  "metadata": {
+    "category": "vector-memory",
+    "tags": ["company", "memory", "similarity", "recommendation", "vector-store"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

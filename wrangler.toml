@@ -1,0 +1,28 @@
+# wrangler.toml
+name = "infrasim-api"
+main = "./worker/dist/index.js"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "*/api/*", zone_name = "thewired.club" } # or your domain
+]
+
+[env.production.vars]
+NODE_ENV = "production"
+OPENAI_API_KEY = ""       # set in Cloudflare dashboard
+ANTHROPIC_API_KEY = ""
+LAMBDA_LABS_API_KEY = ""
+
+[env.development.vars]
+NODE_ENV = "development"
+
+[build]
+command = "yarn build:worker"
+cwd = "."
+watch_dir = ["src", "worker"]
+
+[pages]
+build_output_dir = "out"
+build_command = "yarn build:pages"
+build_cwd = "."

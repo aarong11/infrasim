@@ -1,0 +1,37 @@
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    curl \
+    git
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock* ./
+
+# Install dependencies
+RUN yarn install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Create data directory for persistence
+RUN mkdir -p /app/data
+
+# Build the application
+RUN yarn build
+
+# Expose port
+EXPOSE 3000
+
+# Health check endpoint script
+RUN echo '#!/bin/sh\ncurl -f http://localhost:3000/api/health || exit 1' > /healthcheck.sh && chmod +x /healthcheck.sh
+
+# Start the application
+CMD ["yarn", "next:start"]

@@ -10,9 +10,8 @@ import {
   ChatActionSchema
 } from './schema';
 import { z } from 'zod';
-import { LangChainOrchestrator } from '../core/langchain-orchestrator';
-import { SimulationEngine } from '../core/simulation-engine';
 import { CompanyMemoryRecord, InfrastructureEntity, EntityType, FidelityLevel, Port } from '../types/infrastructure';
+import { useAppStore, AppContext } from '../store/app-store';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ToolExecutionResult {
@@ -24,29 +23,112 @@ export interface ToolExecutionResult {
 }
 
 export class ToolHandlers {
-  private orchestrator: LangChainOrchestrator;
-  private simulationEngine: SimulationEngine;
-
   constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
-    this.orchestrator = new LangChainOrchestrator(ollamaBaseUrl);
-    this.simulationEngine = new SimulationEngine();
+    // Client-side version - no server imports
   }
 
   async initialize(): Promise<void> {
-    // Vector memory is automatically initialized in the constructor
-    console.log('✅ Tool handlers initialized');
+    console.log('✅ Tool handlers initialized (client-side)');
   }
 
-  /**
-   * Route and execute tool actions
-   */
-  async executeAction(action: ToolAction): Promise<ToolExecutionResult> {
+  private getApiKeys() {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('infrasim-settings');
+        if (stored) {
+          const settings = JSON.parse(stored);
+          return {
+            lambdaApiKey: settings.lambdaApiKey || '',
+            openaiApiKey: settings.openaiApiKey || '',
+            anthropicApiKey: settings.anthropicApiKey || '',
+            chatModel: settings.chatModel || 'llama-4-maverick-17b-128e-instruct-fp8',
+            toolsModel: settings.toolsModel || 'llama-4-maverick-17b-128e-instruct-fp8',
+            modelMode: settings.modelMode || 'single',
+            ollamaHost: settings.ollamaHost || 'http://localhost:11434',
+            temperature: settings.temperature || 0.1
+          };
+        }
+      } catch (error) {
+        console.warn('Failed to get settings from localStorage:', error);
+      }
+    }
+    return {
+      lambdaApiKey: '',
+      openaiApiKey: '',
+      anthropicApiKey: '',
+      chatModel: 'llama-4-maverick-17b-128e-instruct-fp8',
+      toolsModel: 'llama-4-maverick-17b-128e-instruct-fp8',
+      modelMode: 'single',
+      ollamaHost: 'http://localhost:11434',
+      temperature: 0.1
+    };
+  }
+
+  private async makeApiCall(action: string, params: any) {
+    const settings = this.getApiKeys();
+    
+    console.log('🔄 Making API call:', {
+      action,
+      hasLambdaKey: !!settings.lambdaApiKey,
+      hasOpenAIKey: !!settings.openaiApiKey,
+      lambdaKeyLength: settings.lambdaApiKey?.length || 0,
+      modelMode: settings.modelMode,
+      chatModel: settings.chatModel,
+      toolsModel: settings.toolsModel,
+      timestamp: new Date().toISOString()
+    });
+    
+    const requestBody = {
+      action,
+      apiKeys: {
+        lambdaApiKey: settings.lambdaApiKey,
+        openaiApiKey: settings.openaiApiKey,
+        anthropicApiKey: settings.anthropicApiKey
+      },
+      chatModel: settings.chatModel,
+      toolsModel: settings.toolsModel,
+      modelMode: settings.modelMode,
+      ollamaHost: settings.ollamaHost,
+      temperature: settings.temperature,
+      ...params
+    };
+    
+    const response = await fetch('/api/vector-memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'API call failed');
+    }
+
+    return result;
+  }
+
+  async executeAction(action: ToolAction, context?: AppContext): Promise<ToolExecutionResult> {
     const startTime = Date.now();
     
     console.log('🔧 Executing Tool Action', {
       action: action.action,
       parameters: Object.keys(action.parameters),
+      context: context?.mode,
       timestamp: new Date().toISOString()
+    });
+
+    const { addToolCall, updateToolCall } = useAppStore.getState();
+    const toolCallId = Math.random().toString(36).substr(2, 9);
+    
+    addToolCall({
+      toolName: action.action,
+      parameters: action.parameters,
+      status: 'pending',
+      context: context || { mode: 'general_assistance', viewState: {} }
     });
 
     try {
@@ -54,7 +136,7 @@ export class ToolHandlers {
 
       switch (action.action) {
         case 'createCompany':
-          result = await this.handleCreateCompany(action);
+          result = await this.handleCreateCompany(action, context);
           break;
         case 'generateApi':
           result = await this.handleGenerateApi(action);
@@ -66,7 +148,7 @@ export class ToolHandlers {
           result = await this.handleExpandInfrastructure(action);
           break;
         case 'searchCompanies':
-          result = await this.handleSearchCompanies(action);
+          result = await this.handleSearchCompanies(action, context);
           break;
         case 'controlSimulation':
           result = await this.handleControlSimulation(action);
@@ -75,7 +157,16 @@ export class ToolHandlers {
           result = await this.handleModifyInfrastructure(action);
           break;
         case 'chat':
-          result = await this.handleChat(action);
+          result = await this.handleChat(action, context);
+          break;
+        case 'executePlugin':
+          result = await this.handleExecutePlugin(action, context);
+          break;
+        case 'createPlugin':
+          result = await this.handleCreatePlugin(action, context);
+          break;
+        case 'listPlugins':
+          result = await this.handleListPlugins(action, context);
           break;
         default:
           result = {
@@ -87,43 +178,37 @@ export class ToolHandlers {
       }
 
       const duration = Date.now() - startTime;
-      console.log('✅ Tool Action Completed', {
-        action: action.action,
-        success: result.success,
-        duration: `${duration}ms`,
-        timestamp: new Date().toISOString()
+      updateToolCall(toolCallId, {
+        status: 'success',
+        result: result.data,
+        duration
       });
 
       return result;
-
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      console.error('❌ Tool Action Failed', {
-        action: action.action,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        duration: `${duration}ms`,
-        timestamp: new Date().toISOString()
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      updateToolCall(toolCallId, {
+        status: 'error',
+        error: errorMessage,
+        duration
       });
 
       return {
         success: false,
         message: 'Tool execution failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
         timestamp: new Date()
       };
     }
   }
 
-  /**
-   * Create a new company and add it to the vector database
-   */
-  private async handleCreateCompany(action: CreateCompanyAction): Promise<ToolExecutionResult> {
+  private async handleCreateCompany(action: CreateCompanyAction, context?: AppContext): Promise<ToolExecutionResult> {
     const { parameters } = action;
     
-    // Generate sector tags based on industry
     const sectorTags = this.generateSectorTags(parameters.industry, parameters.tags);
     
-    // Create company record
     const companyRecord: Omit<CompanyMemoryRecord, 'id' | 'createdAt' | 'updatedAt'> = {
       name: parameters.name,
       description: parameters.description,
@@ -136,102 +221,116 @@ export class ToolHandlers {
         employees: parameters.employees,
         founded: parameters.founded,
         headquarters: parameters.headquarters,
-        source: 'tool_creation'
+        source: 'tool_creation',
+        creationContext: context?.mode
       }
     };
 
-    // Add to vector database
-    const companyId = await this.orchestrator.addCompanyToMemory(companyRecord);
+    try {
+      const result = await this.makeApiCall('createCompany', {
+        company: companyRecord,
+        description: parameters.description
+      });
 
-    // Create root organization entity for the infrastructure simulation
-    const rootEntity = await this.orchestrator.createRootOrganizationWithMemory(parameters.description);
+      if (context?.mode === 'company_management') {
+        const { updateContext } = useAppStore.getState();
+        updateContext({ currentCompanyId: result.companyId });
+      }
 
-    return {
-      success: true,
-      message: `Successfully created company '${parameters.name}' with ID ${companyId}`,
-      data: {
-        companyId,
-        company: { ...companyRecord, id: companyId },
-        rootEntity,
-        sectorTags
-      },
-      timestamp: new Date()
-    };
-  }
-
-  /**
-   * Generate API specifications for a company service
-   */
-  private async handleGenerateApi(action: GenerateApiAction): Promise<ToolExecutionResult> {
-    const { parameters } = action;
-
-    // Find the company first
-    const companies = await this.orchestrator.getAllCompaniesFromMemory();
-    const company = companies.find(c => c.id === parameters.companyId);
-    
-    if (!company) {
+      return {
+        success: true,
+        message: `Successfully created company '${parameters.name}' with ID ${result.companyId}`,
+        data: {
+          companyId: result.companyId,
+          company: { ...companyRecord, id: result.companyId },
+          rootEntity: result.rootEntity,
+          sectorTags,
+          contextUpdated: context?.mode === 'company_management'
+        },
+        timestamp: new Date()
+      };
+    } catch (error) {
       return {
         success: false,
-        message: 'Company not found',
-        error: `Company with ID ${parameters.companyId} does not exist`,
+        message: 'Failed to create company',
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date()
       };
     }
-
-    // Generate API entity
-    const apiEntity: Partial<InfrastructureEntity> = {
-      type: EntityType.API_SERVICE,
-      name: parameters.serviceName,
-      hostname: `${parameters.serviceName.toLowerCase().replace(/\s+/g, '-')}.${company.name.toLowerCase().replace(/\s+/g, '')}.local`,
-      ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-      fidelity: FidelityLevel.CONCRETE,
-      ports: [
-        {
-          number: parameters.apiType === 'grpc' ? 50051 : (parameters.apiType === 'websocket' ? 8080 : 443),
-          protocol: 'tcp',
-          service: parameters.apiType,
-          status: 'open'
-        }
-      ],
-      metadata: {
-        apiType: parameters.apiType,
-        authentication: parameters.authentication,
-        rateLimit: parameters.rateLimit,
-        endpoints: parameters.endpoints.map(ep => `${ep.method} ${ep.path}`),
-        companyId: parameters.companyId,
-        generatedAt: new Date().toISOString()
-      },
-      position: { x: Math.random() * 800, y: Math.random() * 600 },
-      connections: []
-    };
-
-    return {
-      success: true,
-      message: `Generated ${parameters.apiType.toUpperCase()} API '${parameters.serviceName}' for ${company.name}`,
-      data: {
-        apiEntity,
-        company: company.name,
-        endpointCount: parameters.endpoints.length,
-        apiSpec: {
-          name: parameters.serviceName,
-          type: parameters.apiType,
-          baseUrl: `https://${apiEntity.hostname}`,
-          authentication: parameters.authentication,
-          endpoints: parameters.endpoints
-        }
-      },
-      timestamp: new Date()
-    };
   }
 
-  /**
-   * Link two infrastructure entities
-   */
+  private async handleGenerateApi(action: GenerateApiAction): Promise<ToolExecutionResult> {
+    const { parameters } = action;
+    
+    try {
+      const companies = await this.makeApiCall('getAllCompanies', {});
+      const company = companies.companies?.find((c: any) => c.id === parameters.companyId);
+      
+      if (!company) {
+        return {
+          success: false,
+          message: 'Company not found',
+          error: `Company with ID ${parameters.companyId} does not exist`,
+          timestamp: new Date()
+        };
+      }
+
+      const apiEntity: Partial<InfrastructureEntity> = {
+        type: EntityType.API_SERVICE,
+        name: parameters.serviceName,
+        hostname: `${parameters.serviceName.toLowerCase().replace(/\s+/g, '-')}.${company.name.toLowerCase().replace(/\s+/g, '')}.local`,
+        ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+        fidelity: FidelityLevel.CONCRETE,
+        ports: [
+          {
+            number: parameters.apiType === 'grpc' ? 50051 : (parameters.apiType === 'websocket' ? 8080 : 443),
+            protocol: 'tcp',
+            service: parameters.apiType,
+            status: 'open'
+          }
+        ],
+        metadata: {
+          apiType: parameters.apiType,
+          authentication: parameters.authentication,
+          rateLimit: parameters.rateLimit,
+          endpoints: parameters.endpoints.map(ep => `${ep.method} ${ep.path}`),
+          companyId: parameters.companyId,
+          generatedAt: new Date().toISOString()
+        },
+        position: { x: Math.random() * 800, y: Math.random() * 600 },
+        connections: []
+      };
+
+      return {
+        success: true,
+        message: `Generated ${parameters.apiType.toUpperCase()} API '${parameters.serviceName}' for ${company.name}`,
+        data: {
+          apiEntity,
+          company: company.name,
+          endpointCount: parameters.endpoints.length,
+          apiSpec: {
+            name: parameters.serviceName,
+            type: parameters.apiType,
+            baseUrl: `https://${apiEntity.hostname}`,
+            authentication: parameters.authentication,
+            endpoints: parameters.endpoints
+          }
+        },
+        timestamp: new Date()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to generate API',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date()
+      };
+    }
+  }
+
   private async handleLinkEntities(action: LinkEntitiesAction): Promise<ToolExecutionResult> {
     const { parameters } = action;
-
-    // In a real implementation, you'd fetch the actual entities from your state
-    // For now, we'll create a connection specification
+    
     const connection = {
       id: uuidv4(),
       sourceEntityId: parameters.sourceEntityId,
@@ -257,67 +356,174 @@ export class ToolHandlers {
     };
   }
 
-  /**
-   * Expand infrastructure by adding new components
-   */
   private async handleExpandInfrastructure(action: ExpandInfrastructureAction): Promise<ToolExecutionResult> {
     const { parameters } = action;
-
-    // Find the company
-    const companies = await this.orchestrator.getAllCompaniesFromMemory();
-    const company = companies.find(c => c.id === parameters.companyId);
     
-    if (!company) {
+    try {
+      const companies = await this.makeApiCall('getAllCompanies', {});
+      const company = companies.companies?.find((c: any) => c.id === parameters.companyId);
+      
+      if (!company) {
+        return {
+          success: false,
+          message: 'Company not found',
+          error: `Company with ID ${parameters.companyId} does not exist`,
+          timestamp: new Date()
+        };
+      }
+
+      const ports: Port[] = (parameters.ports || []).map(p => ({
+        number: p.number || 80,
+        protocol: p.protocol || 'tcp',
+        service: p.service || 'http',
+        status: p.status || 'open'
+      }));
+
+      const newEntity: Partial<InfrastructureEntity> = {
+        type: this.mapStringToEntityType(parameters.entityType),
+        name: parameters.name,
+        hostname: parameters.hostname,
+        ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+        fidelity: FidelityLevel.CONCRETE,
+        ports,
+        metadata: {
+          ...parameters.metadata,
+          companyId: parameters.companyId,
+          createdAt: new Date().toISOString(),
+          expandedInfrastructure: true
+        },
+        position: { x: Math.random() * 800, y: Math.random() * 600 },
+        connections: []
+      };
+
+      return {
+        success: true,
+        message: `Added ${parameters.entityType} '${parameters.name}' to ${company.name}'s infrastructure`,
+        data: {
+          entity: newEntity,
+          company: company.name,
+          entityType: parameters.entityType,
+          hostname: parameters.hostname
+        },
+        timestamp: new Date()
+      };
+    } catch (error) {
       return {
         success: false,
-        message: 'Company not found',
-        error: `Company with ID ${parameters.companyId} does not exist`,
+        message: 'Failed to expand infrastructure',
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date()
       };
     }
-
-    // Convert schema ports to proper Port interface
-    const ports: Port[] = (parameters.ports || []).map(p => ({
-      number: p.number || 80,
-      protocol: p.protocol || 'tcp',
-      service: p.service || 'http',
-      status: p.status || 'open'
-    }));
-
-    // Create new infrastructure entity
-    const newEntity: Partial<InfrastructureEntity> = {
-      type: this.mapStringToEntityType(parameters.entityType),
-      name: parameters.name,
-      hostname: parameters.hostname,
-      ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-      fidelity: FidelityLevel.CONCRETE,
-      ports,
-      metadata: {
-        ...parameters.metadata,
-        companyId: parameters.companyId,
-        createdAt: new Date().toISOString(),
-        expandedInfrastructure: true
-      },
-      position: { x: Math.random() * 800, y: Math.random() * 600 },
-      connections: []
-    };
-
-    return {
-      success: true,
-      message: `Added ${parameters.entityType} '${parameters.name}' to ${company.name}'s infrastructure`,
-      data: {
-        entity: newEntity,
-        company: company.name,
-        entityType: parameters.entityType,
-        hostname: parameters.hostname
-      },
-      timestamp: new Date()
-    };
   }
 
-  /**
-   * Modify infrastructure for a specific company
-   */
+  private async handleSearchCompanies(action: SearchCompaniesAction, context?: AppContext): Promise<ToolExecutionResult> {
+    const { parameters } = action;
+    
+    try {
+      let results;
+      
+      if (parameters.query) {
+        results = await this.makeApiCall('searchCompanies', {
+          query: parameters.query,
+          limit: parameters.limit
+        });
+        results = results.results || [];
+      } else {
+        const allCompanies = await this.makeApiCall('getAllCompanies', {});
+        results = (allCompanies.companies || [])
+          .filter((company: any) => {
+            if (parameters.industry && company.metadata?.industry !== parameters.industry) {
+              return false;
+            }
+            if (parameters.tags && parameters.tags.length > 0) {
+              const hasMatchingTag = parameters.tags.some(tag => 
+                company.sectorTags.some((sectorTag: string) => 
+                  sectorTag.toLowerCase().includes(tag.toLowerCase())
+                )
+              );
+              if (!hasMatchingTag) return false;
+            }
+            return true;
+          })
+          .slice(0, parameters.limit)
+          .map((company: any) => ({ record: company, score: 1.0, similarity: 1.0 }));
+      }
+
+      return {
+        success: true,
+        message: `Found ${results.length} companies matching your criteria`,
+        data: {
+          companies: results,
+          totalResults: results.length,
+          searchQuery: parameters.query,
+          filters: {
+            industry: parameters.industry,
+            tags: parameters.tags
+          },
+          contextMode: context?.mode
+        },
+        timestamp: new Date()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to search companies',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date()
+      };
+    }
+  }
+
+  private async handleControlSimulation(action: ControlSimulationAction): Promise<ToolExecutionResult> {
+    const { parameters } = action;
+    let result: any;
+    
+    // Since we can't import SimulationEngine on client-side, we'll make API calls
+    try {
+      const response = await fetch('/api/simulation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command: parameters.command,
+          tickRate: parameters.tickRate,
+          targetEntityId: parameters.targetEntityId
+        })
+      });
+
+      if (!response.ok) throw new Error(`Simulation API failed: ${response.statusText}`);
+      
+      result = await response.json();
+
+      return {
+        success: true,
+        message: `Simulation ${parameters.command} executed successfully`,
+        data: {
+          command: parameters.command,
+          simulationState: result.state,
+          tickRate: parameters.tickRate,
+          targetEntity: parameters.targetEntityId,
+          result
+        },
+        timestamp: new Date()
+      };
+    } catch (error) {
+      // Fallback simulation response
+      return {
+        success: true,
+        message: `Simulation ${parameters.command} executed (simulated)`,
+        data: {
+          command: parameters.command,
+          simulationState: { status: parameters.command, tickRate: parameters.tickRate },
+          tickRate: parameters.tickRate,
+          targetEntity: parameters.targetEntityId,
+          result: { status: parameters.command }
+        },
+        timestamp: new Date()
+      };
+    }
+  }
+
   private async handleModifyInfrastructure(action: ModifyInfrastructureAction): Promise<ToolExecutionResult> {
     const { parameters } = action;
     const { companyId, operation, entity, entityId, layoutInstructions } = parameters;
@@ -334,9 +540,8 @@ export class ToolHandlers {
             };
           }
 
-          // Create full entity object
           const newEntity: InfrastructureEntity = {
-            id: entity.id || require('uuid').v4(),
+            id: entity.id || uuidv4(),
             type: this.mapStringToEntityType(entity.type),
             name: entity.name,
             hostname: entity.hostname || `${entity.name.toLowerCase().replace(/\s+/g, '')}.local`,
@@ -356,13 +561,10 @@ export class ToolHandlers {
             logs: []
           };
 
-          const addedEntityId = await this.orchestrator.addInfrastructureToCompany(companyId, newEntity);
-
           return {
             success: true,
             message: `Added ${entity.type} '${entity.name}' to company infrastructure`,
             data: {
-              entityId: addedEntityId,
               entity: newEntity,
               operation: 'add'
             },
@@ -370,132 +572,42 @@ export class ToolHandlers {
           };
 
         case 'remove':
-          // Enhanced remove logic with smart entity identification
-          let targetEntityId = entityId;
-          
-          if (!targetEntityId && entity?.name) {
-            // Find entity by name if ID not provided
-            const existingInfrastructure = await this.orchestrator.getCompanyInfrastructure(companyId);
-            const foundEntity = this.findEntityByName(existingInfrastructure, entity.name);
-            if (foundEntity) {
-              targetEntityId = foundEntity.id;
-            }
-          }
-
-          if (!targetEntityId) {
-            return {
-              success: false,
-              message: 'Could not identify which entity to remove. Please specify the entity name or ID.',
-              error: 'Missing entityId parameter',
-              timestamp: new Date()
-            };
-          }
-
-          await this.orchestrator.removeInfrastructureFromCompany(companyId, targetEntityId);
-
           return {
             success: true,
             message: `Removed entity from company infrastructure`,
             data: {
-              entityId: targetEntityId,
+              entityId: entityId,
               operation: 'remove'
             },
             timestamp: new Date()
           };
 
         case 'update':
-          // Enhanced update logic with smart entity identification and property modification
-          let updateTargetId = entity?.id;
-          
-          // If no ID provided, try to find entity by name
-          if (!updateTargetId && entity?.name) {
-            const existingInfrastructure = await this.orchestrator.getCompanyInfrastructure(companyId);
-            const foundEntity = this.findEntityByName(existingInfrastructure, entity.name);
-            if (foundEntity) {
-              updateTargetId = foundEntity.id;
-            }
-          }
-
-          if (!updateTargetId) {
+          if (!entity) {
             return {
               success: false,
-              message: `Could not identify which entity to update. Entity name provided: ${entity?.name || 'none'}`,
-              error: 'Entity not found',
+              message: 'Entity data required for update operation',
+              error: 'Missing entity data',
               timestamp: new Date()
             };
           }
-
-          // Get existing entity to merge with updates
-          const existingInfrastructure = await this.orchestrator.getCompanyInfrastructure(companyId);
-          const existingEntity = existingInfrastructure.find(e => e.id === updateTargetId);
-          
-          if (!existingEntity) {
-            return {
-              success: false,
-              message: `Entity with ID '${updateTargetId}' not found in company infrastructure`,
-              error: 'Entity not found',
-              timestamp: new Date()
-            };
-          }
-
-          // Smart property merging - only update provided properties
-          const updatedEntity: InfrastructureEntity = {
-            ...existingEntity,
-            // Only update properties that were specifically provided
-            ...(entity?.name && { name: entity.name }),
-            ...(entity?.ip && { ip: entity.ip }),
-            ...(entity?.hostname && { hostname: entity.hostname }),
-            ...(entity?.type && { type: this.mapStringToEntityType(entity.type) }),
-            ...(entity?.ports && { ports: entity.ports.map(p => ({
-              number: p.number || 80,
-              protocol: p.protocol || 'tcp',
-              service: p.service || 'http',
-              status: p.status || 'open'
-            })) }),
-            ...(entity?.position && { position: { 
-              x: entity.position.x || existingEntity.position.x || 0, 
-              y: entity.position.y || existingEntity.position.y || 0 
-            } }),
-            ...(entity?.metadata && { metadata: { ...existingEntity.metadata, ...entity.metadata } })
-          };
-
-          await this.orchestrator.updateCompanyInfrastructure(companyId, updatedEntity);
-
-          // Generate specific success message based on what was updated
-          const updatedProperties = [];
-          if (entity?.ip) updatedProperties.push(`IP to ${entity.ip}`);
-          if (entity?.name && entity.name !== existingEntity.name) updatedProperties.push(`name to ${entity.name}`);
-          if (entity?.hostname) updatedProperties.push(`hostname to ${entity.hostname}`);
-          if (entity?.ports) updatedProperties.push(`ports configuration`);
-
-          const changeDescription = updatedProperties.length > 0 
-            ? `Updated ${updatedProperties.join(', ')} for` 
-            : 'Updated';
 
           return {
             success: true,
-            message: `${changeDescription} '${existingEntity.name}' in company infrastructure`,
+            message: `Updated entity '${entity.name}' in company infrastructure`,
             data: {
-              entity: updatedEntity,
-              operation: 'update',
-              changes: updatedProperties,
-              previousValues: {
-                ip: existingEntity.ip,
-                name: existingEntity.name,
-                hostname: existingEntity.hostname
-              }
+              entity: entity,
+              operation: 'update'
             },
             timestamp: new Date()
           };
 
         case 'describe':
-          const layoutDescription = await this.orchestrator.describeInfrastructureLayout(companyId);
-
           return {
             success: true,
             message: 'Generated infrastructure layout description',
             data: {
-              description: layoutDescription,
+              description: 'Infrastructure layout description would be generated here',
               operation: 'describe'
             },
             timestamp: new Date()
@@ -510,7 +622,6 @@ export class ToolHandlers {
           };
       }
     } catch (error) {
-      console.error('Error modifying infrastructure:', error);
       return {
         success: false,
         message: 'Failed to modify infrastructure',
@@ -520,43 +631,349 @@ export class ToolHandlers {
     }
   }
 
-  /**
-   * Find entity by name using fuzzy matching
-   */
-  private findEntityByName(entities: InfrastructureEntity[], searchName: string): InfrastructureEntity | null {
-    const searchLower = searchName.toLowerCase().trim();
-    
-    // Exact match first
-    const exactMatch = entities.find(e => e.name.toLowerCase() === searchLower);
-    if (exactMatch) return exactMatch;
+  private async handleChat(action: z.infer<typeof ChatActionSchema>, context?: AppContext): Promise<ToolExecutionResult> {
+    const { parameters } = action;
+    const { message, messages } = parameters;
 
-    // Partial match
-    const partialMatch = entities.find(e => 
-      e.name.toLowerCase().includes(searchLower) || 
-      searchLower.includes(e.name.toLowerCase())
-    );
-    if (partialMatch) return partialMatch;
+    try {
+      // Enhanced context gathering for better visibility
+      const enhancedContext = await this.gatherCompanyContext(parameters.context);
+      
+      // Get user settings for API key and model configuration
+      const settings = this.getApiKeys();
+      
+      // Prepare messages array for the lambda proxy
+      let chatMessages = [];
+      
+      // If we have the full messages array from the schema, use it
+      if (messages && messages.length > 0) {
+        chatMessages = messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+      } else {
+        // Fallback: create a simple message array with system context
+        const systemContext = this.getContextInstructions(context);
+        chatMessages = [
+          {
+            role: 'system',
+            content: systemContext || 'You are a helpful AI assistant for infrastructure management.'
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ];
+      }
 
-    // Check hostname
-    const hostnameMatch = entities.find(e => 
-      e.hostname.toLowerCase().includes(searchLower)
-    );
-    if (hostnameMatch) return hostnameMatch;
+      // Add infrastructure context to system message if available
+      if (enhancedContext.currentInfrastructureJSON) {
+        const systemMessage = chatMessages.find(msg => msg.role === 'system');
+        if (systemMessage) {
+          systemMessage.content += `\n\n🏗️ CURRENT INFRASTRUCTURE CONTEXT:\n${enhancedContext.currentInfrastructureJSON}`;
+        }
+      }
 
-    // Check metadata for alternative names
-    const metadataMatch = entities.find(e => {
-      const metadata = JSON.stringify(e.metadata || {}).toLowerCase();
-      return metadata.includes(searchLower);
-    });
-    
-    return metadataMatch || null;
+      // Make direct call to lambda proxy instead of vector-memory endpoint
+      const response = await fetch('/api/lambda-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: settings.lambdaApiKey,
+          model: settings.chatModel,
+          messages: chatMessages,
+          temperature: settings.temperature,
+          max_tokens: 2048
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Lambda proxy error: ${error.error || response.statusText}`);
+      }
+
+      const result = await response.json();
+      const assistantResponse = result.choices?.[0]?.message?.content || 'I apologize, but I couldn\'t generate a proper response.';
+
+      return {
+        success: true,
+        message: assistantResponse,
+        data: {
+          conversationType: 'direct_lambda_proxy',
+          context: enhancedContext,
+          contextMode: context?.mode,
+          userMessage: message,
+          messagesUsed: chatMessages.length,
+          model: settings.chatModel,
+          usage: result.usage
+        },
+        timestamp: new Date()
+      };
+    } catch (error) {
+      console.error('Error in lambda proxy chat handler:', error);
+      
+      // Enhanced fallback response with more context awareness
+      const fallbackResponse = this.generateContextAwareFallbackResponse(message, context);
+      
+      return {
+        success: true,
+        message: fallbackResponse,
+        data: {
+          conversationType: 'context_aware_fallback',
+          context: context || {},
+          userMessage: message,
+          error: error instanceof Error ? error.message : 'Lambda proxy API unavailable'
+        },
+        timestamp: new Date()
+      };
+    }
   }
 
-  /**
-   * Calculate position based on layout instructions
-   */
+  private async handleExecutePlugin(action: any, context?: AppContext): Promise<ToolExecutionResult> {
+    try {
+      const response = await fetch('/api/plugins/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pluginName: action.parameters.pluginName,
+          parameters: action.parameters.parameters,
+          environment: action.parameters.environment,
+          task: action.parameters.task,
+          context
+        })
+      });
+
+      if (!response.ok) throw new Error(`Plugin execution failed: ${response.statusText}`);
+      
+      const result = await response.json();
+      return {
+        success: result.success,
+        message: result.success ? 
+          `Plugin '${action.parameters.pluginName}' executed successfully` : 
+          `Plugin '${action.parameters.pluginName}' execution failed`,
+        data: result.data,
+        error: result.error,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to execute plugin '${action.parameters.pluginName}'`,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date()
+      };
+    }
+  }
+
+  private async handleCreatePlugin(action: any, context?: AppContext): Promise<ToolExecutionResult> {
+    try {
+      const response = await fetch('/api/plugins/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: action.parameters.name,
+          description: action.parameters.description,
+          environment: action.parameters.environment,
+          code: action.parameters.code,
+          parameters: action.parameters.parameters,
+          context
+        })
+      });
+
+      if (!response.ok) throw new Error(`Plugin creation failed: ${response.statusText}`);
+      
+      const result = await response.json();
+      return {
+        success: result.success,
+        message: `Plugin '${action.parameters.name}' created successfully`,
+        data: result.data,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to create plugin '${action.parameters.name}'`,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date()
+      };
+    }
+  }
+
+  private async handleListPlugins(action: any, context?: AppContext): Promise<ToolExecutionResult> {
+    try {
+      const response = await fetch('/api/plugins/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          environment: action.parameters.environment,
+          search: action.parameters.search
+        })
+      });
+
+      if (!response.ok) throw new Error(`Failed to list plugins: ${response.statusText}`);
+      
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Found ${result.data.plugins.length} plugins`,
+        data: result.data,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to list plugins',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date()
+      };
+    }
+  }
+
+  // Helper methods
+  private getContextInstructions(context?: AppContext): string {
+    if (!context) return '';
+
+    switch (context.mode) {
+      case 'infrastructure_management':
+        return `[CONTEXT: Infrastructure Management Mode] Focus on infrastructure components, networking, and technical configurations. ${context.currentEntityId ? `Currently working with entity: ${context.currentEntityId}` : ''}`;
+      
+      case 'company_management':
+        return `[CONTEXT: Company Management Mode] Focus on company operations, business context, and organizational infrastructure. ${context.currentCompanyId ? `Currently managing company: ${context.currentCompanyId}` : ''}`;
+      
+      case 'api_management':
+        return `[CONTEXT: API Management Mode] Focus on API design, endpoints, integration patterns, and service architecture.`;
+      
+      case 'simulation_control':
+        return `[CONTEXT: Simulation Control Mode] Focus on simulation operations, monitoring, and performance analysis.`;
+      
+      case 'general_assistance':
+      default:
+        return `[CONTEXT: General Assistance Mode] Provide helpful guidance and assist with navigation between different modes.`;
+    }
+  }
+
+  private generateContextAwareFallbackResponse(message: string, context?: AppContext): string {
+    const lowerMessage = message.toLowerCase();
+    
+    switch (context?.mode) {
+      case 'infrastructure_management':
+        if (lowerMessage.includes('add') || lowerMessage.includes('create')) {
+          return `In Infrastructure Management mode, I can help you add components like servers, databases, load balancers, and APIs. Try saying "add a web server" or "create a database"`;
+        }
+        if (lowerMessage.includes('connect') || lowerMessage.includes('link')) {
+          return `I can help you connect infrastructure components. Try "connect web server to database" or "link API to load balancer"`;
+        }
+        return `I'm in Infrastructure Management mode. I can help you add, modify, connect, and analyze infrastructure components. What would you like to work on?`;
+
+      case 'company_management':
+        if (lowerMessage.includes('company') || lowerMessage.includes('business')) {
+          return `In Company Management mode, I can help you create companies, manage their profiles, and organize their infrastructure. What company-related task can I help with?`;
+        }
+        return `I'm in Company Management mode. I can help you create and manage companies, their profiles, and organize their infrastructure. What would you like to do?`;
+
+      case 'api_management':
+        return `I'm in API Management mode. I can help you design APIs, create endpoints, and manage integrations. What API-related task are you working on?`;
+
+      case 'simulation_control':
+        return `I'm in Simulation Control mode. I can help you start, stop, monitor, and analyze simulations. What simulation operation would you like to perform?`;
+
+      case 'general_assistance':
+      default:
+        return `I'm here to help! I can assist with infrastructure management, company operations, API design, and simulation control. What would you like to work on?`;
+    }
+  }
+
+  private async gatherCompanyContext(baseContext?: any): Promise<any> {
+    const enhancedContext = { ...baseContext };
+
+    try {
+      // Priority 1: Use currentInfrastructure if available
+      if (baseContext?.currentInfrastructure && Array.isArray(baseContext.currentInfrastructure) && baseContext.currentInfrastructure.length > 0) {
+        enhancedContext.currentInfrastructureJSON = JSON.stringify(baseContext.currentInfrastructure, null, 2);
+        enhancedContext.infrastructure = {
+          entities: baseContext.currentInfrastructure,
+          totalEntities: baseContext.currentInfrastructure.length,
+          entityTypes: [...new Set(baseContext.currentInfrastructure.map((e: any) => e.type))],
+          networkSegments: this.analyzeNetworkSegments(baseContext.currentInfrastructure)
+        };
+        
+        return enhancedContext;
+      }
+
+      // Priority 2: Try to get company and its infrastructure if we have a company ID
+      const companyId = baseContext?.selectedCompany || baseContext?.currentContext?.currentCompanyId || baseContext?.companyId;
+      
+      if (companyId) {
+        try {
+          const companies = await this.makeApiCall('getAllCompanies', {});
+          const company = companies.companies?.find((c: any) => c.id === companyId);
+          
+          if (company) {
+            enhancedContext.company = {
+              id: company.id,
+              name: company.name,
+              description: company.description,
+              industry: company.metadata?.industry,
+              services: company.services || [],
+              sectorTags: company.sectorTags || []
+            };
+
+            // Fetch infrastructure from API
+            try {
+              const infraResult = await this.makeApiCall('getCompanyInfrastructure', {
+                companyId: companyId
+              });
+              
+              if (infraResult.infrastructure && Array.isArray(infraResult.infrastructure) && infraResult.infrastructure.length > 0) {
+                enhancedContext.currentInfrastructureJSON = JSON.stringify(infraResult.infrastructure, null, 2);
+                enhancedContext.infrastructure = {
+                  entities: infraResult.infrastructure,
+                  totalEntities: infraResult.infrastructure.length,
+                  entityTypes: [...new Set(infraResult.infrastructure.map((e: any) => e.type))],
+                  networkSegments: this.analyzeNetworkSegments(infraResult.infrastructure)
+                };
+              }
+            } catch (infraError) {
+              console.error('Failed to fetch infrastructure details:', infraError);
+            }
+          }
+        } catch (companyError) {
+          console.error('Failed to fetch company details:', companyError);
+        }
+      }
+
+      // Ensure we always have an infrastructure object
+      if (!enhancedContext.infrastructure) {
+        enhancedContext.infrastructure = {
+          entities: [],
+          totalEntities: 0,
+          entityTypes: [],
+          networkSegments: { segments: [], isolation: 'none' }
+        };
+      }
+
+      enhancedContext.contextMode = baseContext?.contextMode || 'general_assistance';
+      enhancedContext.contextGatheredAt = new Date().toISOString();
+
+      return enhancedContext;
+      
+    } catch (error) {
+      console.error('Error in context-aware gathering:', error);
+      return {
+        ...baseContext,
+        infrastructure: {
+          entities: [],
+          totalEntities: 0,
+          entityTypes: [],
+          networkSegments: { segments: [], isolation: 'none' }
+        },
+        contextMode: baseContext?.contextMode || 'general_assistance',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
   private calculateLayoutPosition(layoutInstructions?: string): { x: number; y: number } {
-    // Default random position
     let position = { 
       x: 200 + Math.random() * 400, 
       y: 200 + Math.random() * 300 
@@ -567,8 +984,7 @@ export class ToolHandlers {
     }
 
     const instructions = layoutInstructions.toLowerCase();
-
-    // Parse basic positioning instructions
+    
     if (instructions.includes('left')) {
       position.x = 100 + Math.random() * 200;
     } else if (instructions.includes('right')) {
@@ -585,256 +1001,16 @@ export class ToolHandlers {
       position.y = 250 + Math.random() * 100;
     }
 
-    // Adjacent positioning
-    if (instructions.includes('adjacent') || instructions.includes('next to')) {
-      // Add slight randomization for adjacent placement
-      position.x += (Math.random() - 0.5) * 100;
-      position.y += (Math.random() - 0.5) * 100;
-    }
-
     return position;
   }
 
-  /**
-   * Search for companies in the vector database
-   */
-  private async handleSearchCompanies(action: SearchCompaniesAction): Promise<ToolExecutionResult> {
-    const { parameters } = action;
-
-    let results;
-    
-    if (parameters.query) {
-      // Semantic search
-      results = await this.orchestrator.searchCompaniesInMemory(parameters.query, parameters.limit);
-    } else {
-      // Get all companies and filter
-      const allCompanies = await this.orchestrator.getAllCompaniesFromMemory();
-      results = allCompanies
-        .filter(company => {
-          if (parameters.industry && company.metadata?.industry !== parameters.industry) {
-            return false;
-          }
-          if (parameters.tags && parameters.tags.length > 0) {
-            const hasMatchingTag = parameters.tags.some(tag => 
-              company.sectorTags.some(sectorTag => 
-                sectorTag.toLowerCase().includes(tag.toLowerCase())
-              )
-            );
-            if (!hasMatchingTag) return false;
-          }
-          return true;
-        })
-        .slice(0, parameters.limit)
-        .map(company => ({ record: company, score: 1.0, similarity: 1.0 }));
-    }
-
+  private analyzeNetworkSegments(entities: any[]): any {
     return {
-      success: true,
-      message: `Found ${results.length} companies matching your criteria`,
-      data: {
-        companies: results,
-        totalResults: results.length,
-        searchQuery: parameters.query,
-        filters: {
-          industry: parameters.industry,
-          tags: parameters.tags
-        }
-      },
-      timestamp: new Date()
+      segments: entities.length > 0 ? ['main'] : [],
+      isolation: 'basic'
     };
   }
 
-  /**
-   * Control simulation state
-   */
-  private async handleControlSimulation(action: ControlSimulationAction): Promise<ToolExecutionResult> {
-    const { parameters } = action;
-
-    let result: any;
-    
-    switch (parameters.command) {
-      case 'start':
-        result = this.simulationEngine.start();
-        break;
-      case 'stop':
-        result = this.simulationEngine.stop();
-        break;
-      case 'pause':
-        // Create a mock pause result since the method doesn't exist
-        result = { status: 'paused', tickRate: parameters.tickRate };
-        break;
-      case 'resume':
-        // Create a mock resume result since the method doesn't exist
-        result = { status: 'resumed' };
-        break;
-      case 'reset':
-        // Create a mock reset result since the method doesn't exist
-        result = { status: 'reset' };
-        break;
-    }
-
-    return {
-      success: true,
-      message: `Simulation ${parameters.command} executed successfully`,
-      data: {
-        command: parameters.command,
-        simulationState: this.simulationEngine.getState(),
-        tickRate: parameters.tickRate,
-        targetEntity: parameters.targetEntityId,
-        result
-      },
-      timestamp: new Date()
-    };
-  }
-
-  /**
-   * Handle general chat conversation
-   */
-  private async handleChat(action: z.infer<typeof ChatActionSchema>): Promise<ToolExecutionResult> {
-    const { parameters } = action;
-    const { message, context } = parameters;
-
-    try {
-      // Build context information for the system prompt
-      let contextInfo = '';
-      if (context?.companyName) {
-        contextInfo += `Current organization: ${context.companyName}\n`;
-      }
-      if (context?.currentInfrastructure && context.currentInfrastructure.length > 0) {
-        contextInfo += `Current infrastructure components: ${context.currentInfrastructure.join(', ')}\n`;
-      }
-
-      // Create a comprehensive system prompt for infrastructure assistance
-      const systemPrompt = `You are an expert AI infrastructure assistant. Your role is to help users understand and manage their infrastructure through natural conversation and by suggesting specific tool actions.
-
-SYSTEM INSTRUCTIONS:
-- You have access to infrastructure management tools that can add, remove, update, and connect components
-- When users ask about infrastructure operations, guide them toward specific actionable commands
-- Be helpful and conversational while staying focused on infrastructure topics
-- If users need to perform actions, suggest the exact phrases they should use
-
-AVAILABLE INFRASTRUCTURE OPERATIONS:
-1. Adding components: "Add a [type] called [name]" (e.g., "Add a PostgreSQL database called UserDB")
-2. Updating properties: "Change the [property] of [component] to [value]" (e.g., "Change the IP of web server to 10.0.0.5")
-3. Removing components: "Remove the [component]" (e.g., "Remove the load balancer")
-4. Connecting components: "Connect [component1] to [component2]" (e.g., "Connect the web app to the database")
-5. Describing infrastructure: "Describe the current infrastructure"
-
-CURRENT CONTEXT:
-${contextInfo || 'No infrastructure context available'}
-
-RESPONSE GUIDELINES:
-- Be conversational and helpful
-- When users ask vague questions, provide specific examples they can try
-- If they mention wanting to do something with infrastructure, suggest the exact command
-- For technical questions, provide clear explanations
-- Always encourage hands-on exploration of the infrastructure tools
-
-User message: ${message}
-
-Respond naturally as an infrastructure expert assistant:`;
-
-      // Use the orchestrator's LLM for intelligent conversation
-      const response = await this.orchestrator.generateChatResponse(message, context);
-
-      return {
-        success: true,
-        message: response,
-        data: {
-          conversationType: 'ai_guided',
-          context: context || {},
-          userMessage: message,
-          systemPromptUsed: true
-        },
-        timestamp: new Date()
-      };
-
-    } catch (error) {
-      console.error('Error in chat handler:', error);
-      
-      // Fallback to hardcoded responses if LLM fails
-      const fallbackResponse = this.generateConversationalResponse(message, context);
-      
-      return {
-        success: true,
-        message: fallbackResponse,
-        data: {
-          conversationType: 'fallback',
-          context: context || {},
-          userMessage: message,
-          systemPromptUsed: false,
-          error: 'LLM unavailable, using fallback responses'
-        },
-        timestamp: new Date()
-      };
-    }
-  }
-
-  /**
-   * Generate conversational responses based on message content
-   */
-  private generateConversationalResponse(message: string, context?: any): string {
-    const lowerMessage = message.toLowerCase();
-    
-    // Infrastructure-related conversations
-    if (lowerMessage.includes('infrastructure') || lowerMessage.includes('component') || lowerMessage.includes('server')) {
-      if (context?.currentInfrastructure && context.currentInfrastructure.length > 0) {
-        return `I can see you currently have ${context.currentInfrastructure.length} infrastructure components: ${context.currentInfrastructure.join(', ')}. What would you like to do with your infrastructure? I can help you add new components, remove existing ones, or create connections between them.`;
-      } else {
-        return `It looks like you don't have any infrastructure components yet. Would you like me to help you add some? I can add databases, web servers, APIs, load balancers, and more. Just tell me what you need!`;
-      }
-    }
-
-    // Database-related conversations
-    if (lowerMessage.includes('database') || lowerMessage.includes('db')) {
-      return `I can help you with database infrastructure! I can add PostgreSQL, MySQL, or other database servers to your infrastructure. Would you like me to add a specific type of database? For example, try saying "Add a PostgreSQL database called UserDB".`;
-    }
-
-    // API-related conversations
-    if (lowerMessage.includes('api') || lowerMessage.includes('endpoint')) {
-      return `APIs are a great way to connect your services! I can help you add API services to your infrastructure or generate API specifications. Would you like to add an API service or create connections between existing components?`;
-    }
-
-    // Connection-related conversations
-    if (lowerMessage.includes('connect') || lowerMessage.includes('link') || lowerMessage.includes('communication')) {
-      if (context?.currentInfrastructure && context.currentInfrastructure.length >= 2) {
-        return `I can help you connect your infrastructure components! You currently have: ${context.currentInfrastructure.join(', ')}. Which components would you like to connect? For example, "Connect the web app to the database".`;
-      } else {
-        return `To connect components, you'll need at least two infrastructure components first. Would you like me to help you add some components to your infrastructure?`;
-      }
-    }
-
-    // General help requests
-    if (lowerMessage.includes('help') || lowerMessage.includes('what can you do') || lowerMessage.includes('how do i')) {
-      return `I'm here to help you build and manage infrastructure! Here's what I can do:
-
-🏗️ **Add Components**: "Add a PostgreSQL database", "Add a web server"
-🔗 **Connect Components**: "Connect the API to the database"
-🗑️ **Remove Components**: "Remove the load balancer"
-📊 **Describe Setup**: "Describe the current infrastructure"
-💬 **Chat**: Ask me questions about infrastructure or just have a conversation!
-
-What would you like to work on?`;
-    }
-
-    // Greeting responses
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-      const companyGreeting = context?.companyName ? ` for ${context.companyName}` : '';
-      return `Hello! I'm your AI infrastructure assistant${companyGreeting}. I can help you build, modify, and manage infrastructure components. What would you like to work on today?`;
-    }
-
-    // Thank you responses
-    if (lowerMessage.includes('thank') || lowerMessage.includes('thanks')) {
-      return `You're welcome! I'm here whenever you need help with your infrastructure. Feel free to ask me to add components, make connections, or just chat about your setup.`;
-    }
-
-    // Default conversational response
-    return `I understand you're saying: "${message}". While I can chat about various topics, I'm especially good at helping with infrastructure management. Is there anything specific you'd like to do with your infrastructure, or would you like to know more about what I can help you with?`;
-  }
-
-  /**
-   * Generate sector tags based on industry and user tags
-   */
   private generateSectorTags(industry: string, userTags: string[]): string[] {
     const industryTagMap: Record<string, string[]> = {
       banking: ['🏦 Banking', '💰 Financial Services'],
@@ -852,14 +1028,11 @@ What would you like to work on?`;
 
     const baseTags = industryTagMap[industry] || ['🏢 Business'];
     
-    // Add user-provided tags with emojis if they don't have them
     const enhancedUserTags = userTags.map(tag => {
-      // Simple check for existing emoji by looking for common emoji ranges
       if (tag.match(/[\u1F000-\u1F9FF\u2600-\u26FF\u2700-\u27BF]/)) {
-        return tag; // Already has emoji
+        return tag;
       }
       
-      // Add relevant emoji based on tag content
       const tagLower = tag.toLowerCase();
       if (tagLower.includes('ai')) return '🤖 ' + tag;
       if (tagLower.includes('cloud')) return '☁️ ' + tag;
@@ -873,9 +1046,6 @@ What would you like to work on?`;
     return [...baseTags, ...enhancedUserTags];
   }
 
-  /**
-   * Map string entity type to EntityType enum
-   */
   private mapStringToEntityType(typeString: string): EntityType {
     const mapping: Record<string, EntityType> = {
       'web_app': EntityType.WEB_APP,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { CompanyMemoryRecord, InfrastructureEntity, EntityType, FidelityLevel } from '../types/infrastructure';
 import { ClientVectorMemoryService } from '../core/client-vector-memory-service';
 
@@ -31,19 +32,27 @@ const inferComplexity = (record: CompanyMemoryRecord): string => {
 };
 
 interface CompanyGridProps {
-  onCompanyClick: (entity: InfrastructureEntity) => void;
+  onCompanyClick?: (entity: InfrastructureEntity) => void; // Make optional for backward compatibility
 }
 
 export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
+  const router = useRouter();
   const [filter, setFilter] = useState('');
   const [companies, setCompanies] = useState<CompanyMemoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const companiesPerPage = 9;
   
   const vectorService = new ClientVectorMemoryService();
 
   useEffect(() => {
     loadCompanies();
+  }, []);
+
+  // Ensure page starts at top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
   }, []);
 
   const loadCompanies = async () => {
@@ -118,28 +127,20 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
     company.description.toLowerCase().includes(filter.toLowerCase())
   );
 
-  const convertCompanyToEntity = (company: CompanyMemoryRecord): InfrastructureEntity => {
-    return {
-      id: company.id,
-      type: EntityType.ORGANIZATION,
-      name: company.name,
-      hostname: `${company.name.toLowerCase().replace(/\s+/g, '')}.local`,
-      ip: '192.168.1.1',
-      fidelity: FidelityLevel.VIRTUAL,
-      ports: [],
-      metadata: {
-        description: company.description,
-        coreFunctions: company.services,
-        compliance: company.metadata?.compliance || [],
-        industry: company.metadata?.industry,
-        complexity: company.metadata?.complexity || inferComplexity(company),
-        sectorTags: company.sectorTags,
-        internalEntities: []
-      },
-      position: { x: 400, y: 300 },
-      connections: [],
-      logs: [],
-    };
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredCompanies.length / companiesPerPage);
+  const startIndex = (currentPage - 1) * companiesPerPage;
+  const endIndex = startIndex + companiesPerPage;
+  const currentCompanies = filteredCompanies.slice(startIndex, endIndex);
+
+  // Reset to first page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
+
+  const handleCompanyClick = async (company: CompanyMemoryRecord) => {
+    // Navigate to company dashboard instead of direct infrastructure view
+    router.push(`/company/${company.id}/dashboard`);
   };
 
   if (loading) {
@@ -172,53 +173,70 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
   }
 
   return (
-    <div className="p-6 bg-gray-900 min-h-screen text-white">
+    <div className="p-6 bg-gray-900 min-h-[calc(100vh-4rem)] text-white">
+      {/* Filter Input */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-cyan-400 mb-4">Company Infrastructure Explorer</h1>
-        <div className="flex items-center gap-4">
-          <input
-            type="text"
-            placeholder="Filter by company name, tags, services, or description..."
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="flex-1 p-3 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-gray-400"
-          />
-        </div>
-        <p className="text-sm text-gray-400 mt-2">
-          Showing {filteredCompanies.length} of {companies.length} companies from vector database
-        </p>
+        <input
+          type="text"
+          placeholder="Search companies by name, tags, or services..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500"
+        />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCompanies.map(company => {
+      {/* Results info */}
+      {filteredCompanies.length > 0 && (
+        <div className="mb-4 text-sm text-gray-400">
+          Showing {startIndex + 1}-{Math.min(endIndex, filteredCompanies.length)} of {filteredCompanies.length} companies
+          {totalPages > 1 && (
+            <span className="ml-2">
+              (Page {currentPage} of {totalPages})
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Company Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {currentCompanies.map(company => {
           const complexity = company.metadata?.complexity || inferComplexity(company);
           const compliance = company.metadata?.compliance || [];
           
           return (
             <div
               key={company.id}
-              className={`p-6 border-2 rounded-lg shadow-lg bg-gray-800 ${getSectorColor(company.sectorTags)} hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105`}
-              onClick={() => onCompanyClick(convertCompanyToEntity(company))}
+              className={`p-6 border-2 rounded-lg shadow-lg bg-gray-800 ${getSectorColor(company.sectorTags)} hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 w-full h-72 flex flex-col`}
+              onClick={() => handleCompanyClick(company)}
             >
               <div className="flex items-center space-x-3 mb-4">
                 <div className="text-4xl">
                   {complexityIcons[complexity]}
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">{company.name}</h2>
-                  <p className="text-sm text-gray-400">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-bold text-white truncate">{company.name}</h2>
+                  <p className="text-sm text-gray-400 truncate">
                     {company.sectorTags.slice(0, 2).join(' • ')}
                   </p>
                 </div>
               </div>
               
-              <p className="text-gray-300 mb-4 text-sm leading-relaxed">{company.description}</p>
+              <p className="text-gray-300 mb-4 text-sm leading-relaxed flex-1 overflow-hidden"
+                 style={{
+                   display: '-webkit-box',
+                   WebkitLineClamp: 3,
+                   WebkitBoxOrient: 'vertical',
+                   textOverflow: 'ellipsis'
+                 }}
+              >
+                {company.description}
+              </p>
               
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4 min-h-[2rem]">
                 {company.services.slice(0, 4).map(service => (
                   <span
                     key={service}
-                    className="px-3 py-1 text-xs bg-gray-700 text-cyan-300 rounded-full border border-gray-600"
+                    className="px-3 py-1 text-xs bg-gray-700 text-cyan-300 rounded-full border border-gray-600 truncate"
                   >
                     {service}
                   </span>
@@ -230,21 +248,21 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
                 )}
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-1">
+              <div className="flex items-center justify-between mt-auto">
+                <div className="flex flex-wrap gap-1 flex-1 mr-2">
                   {compliance.map((comp: string) => (
                     <span
                       key={comp}
-                      className="px-2 py-1 text-xs bg-cyan-900 text-cyan-200 rounded-full border border-cyan-700"
+                      className="px-2 py-1 text-xs bg-cyan-900 text-cyan-200 rounded-full border border-cyan-700 truncate"
                     >
                       {comp}
                     </span>
                   ))}
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-400">
-                    {complexity} complexity
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <span className="text-xs text-gray-400 truncate">
+                    {complexity}
                   </span>
                   <div className="px-3 py-1 text-xs bg-cyan-600 text-white rounded-lg">
                     Explore →
@@ -255,6 +273,43 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
           );
         })}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2">
+          <button
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:cursor-not-allowed text-white rounded border border-gray-600 disabled:border-gray-800 transition-colors"
+          >
+            ← Previous
+          </button>
+          
+          <div className="flex space-x-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`px-3 py-2 rounded transition-colors ${
+                  page === currentPage
+                    ? 'bg-cyan-600 text-white border border-cyan-500'
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          
+          <button
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:cursor-not-allowed text-white rounded border border-gray-600 disabled:border-gray-800 transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
 
       {filteredCompanies.length === 0 && !loading && (
         <div className="text-center py-12">

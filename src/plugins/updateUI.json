@@ -1,0 +1,45 @@
+{
+  "pluginName": "updateUI",
+  "version": "1.0.0",
+  "description": "Update DOM elements with optional animations and effects",
+  "executionContext": "browser",
+  "parameters": {
+    "selector": {
+      "type": "string",
+      "required": true,
+      "description": "CSS selector for target element(s)"
+    },
+    "content": {
+      "type": "string",
+      "required": true,
+      "description": "New content for the element (HTML supported)"
+    },
+    "animation": {
+      "type": "string",
+      "required": false,
+      "description": "Animation type: fade, slide, bounce, or none",
+      "default": "none",
+      "validation": {
+        "enum": ["fade", "slide", "bounce", "none"]
+      }
+    },
+    "duration": {
+      "type": "number",
+      "required": false,
+      "description": "Animation duration in milliseconds",
+      "default": 300
+    }
+  },
+  "inlineCode": "function updateUI(selector, content, animation = 'none', duration = 300) {\n  const elements = document.querySelectorAll(selector);\n  \n  if (elements.length === 0) {\n    throw new Error(`No elements found with selector: ${selector}`);\n  }\n  \n  const results = [];\n  \n  elements.forEach((element, index) => {\n    const previousContent = element.innerHTML;\n    element.setAttribute('data-previous-content', previousContent);\n    \n    switch (animation) {\n      case 'fade':\n        element.style.opacity = '0';\n        element.style.transition = `opacity ${duration}ms ease-in-out`;\n        setTimeout(() => {\n          element.innerHTML = content;\n          element.style.opacity = '1';\n        }, 10);\n        break;\n        \n      case 'slide':\n        element.style.transform = 'translateX(-100%)';\n        element.style.transition = `transform ${duration}ms ease-in-out`;\n        setTimeout(() => {\n          element.innerHTML = content;\n          element.style.transform = 'translateX(0)';\n        }, 10);\n        break;\n        \n      case 'bounce':\n        element.style.transform = 'scale(0.8)';\n        element.style.transition = `transform ${duration}ms cubic-bezier(0.68, -0.55, 0.265, 1.55)`;\n        element.innerHTML = content;\n        setTimeout(() => {\n          element.style.transform = 'scale(1)';\n        }, 10);\n        break;\n        \n      default:\n        element.innerHTML = content;\n    }\n    \n    results.push({\n      elementIndex: index,\n      selector: selector,\n      previousContent: previousContent,\n      newContent: content,\n      animation: animation\n    });\n  });\n  \n  return {\n    success: true,\n    elementsUpdated: elements.length,\n    results: results,\n    timestamp: new Date().toISOString()\n  };\n}",
+  "dependencies": [],
+  "timeout": 5000,
+  "retries": 0,
+  "metadata": {
+    "category": "ui",
+    "tags": ["dom", "animation", "ui-update"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

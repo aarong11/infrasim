@@ -1,0 +1,26 @@
+{
+  "pluginName": "summarize_webpage",
+  "description": "Summarize content from a given URL",
+  "executionContext": "container",
+  "parameters": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "The URL to summarize"
+    },
+    "maxLength": {
+      "type": "number",
+      "required": false,
+      "default": 200,
+      "description": "Maximum summary length in words"
+    }
+  },
+  "inlineCode": "async function summarize_webpage({ url, maxLength = 200 }) { try { const response = await fetch(url); const html = await response.text(); const textContent = html.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim(); const words = textContent.split(' '); const summary = words.slice(0, maxLength).join(' '); return { success: true, summary, originalLength: words.length, summaryLength: summary.split(' ').length, url }; } catch (error) { return { success: false, error: error.message, url }; } }",
+  "version": "1.0.0",
+  "dependencies": [],
+  "timeout": 15000,
+  "metadata": {
+    "category": "web",
+    "author": "system"
+  }
+}

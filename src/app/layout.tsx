@@ -5,12 +5,13 @@ import './globals.css'
 import TopMenuBar from '../components/TopMenuBar'
 import LogsConsole from '../components/LogsConsole'
 import { SettingsModal } from '../components/SettingsModal'
+import { GlobalChatProvider } from '../components/GlobalChatProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'InfraSim - Infrastructure Simulation Platform',
-  description: 'AI-powered infrastructure simulation and visualization',
+  description: 'Advanced infrastructure modeling and simulation platform with AI-powered assistance',
 }
 
 export default function RootLayout({
@@ -21,12 +22,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TopMenuBar />
-        <main className="pt-16">
-          {children}
-        </main>
-        <LogsConsole />
-        <SettingsModal />
+        <GlobalChatProvider>
+          <TopMenuBar />
+          <main className="pt-16">
+            {children}
+          </main>
+          <LogsConsole />
+          <SettingsModal />
+        </GlobalChatProvider>
       </body>
     </html>
   )

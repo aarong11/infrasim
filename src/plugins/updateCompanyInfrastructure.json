@@ -1,0 +1,57 @@
+{
+  "pluginName": "updateCompanyInfrastructure",
+  "version": "1.0.0",
+  "description": "Update an existing infrastructure entity in a company's infrastructure",
+  "executionContext": "server",
+  "parameters": {
+    "companyId": {
+      "type": "string",
+      "required": true,
+      "description": "ID of the company containing the infrastructure"
+    },
+    "entity": {
+      "type": "object",
+      "required": true,
+      "description": "Updated infrastructure entity with id and modified fields",
+      "properties": {
+        "id": {
+          "type": "string",
+          "required": true,
+          "description": "Infrastructure entity ID"
+        },
+        "name": {
+          "type": "string",
+          "required": false,
+          "description": "Entity name"
+        },
+        "hostname": {
+          "type": "string",
+          "required": false,
+          "description": "Entity hostname"
+        },
+        "ports": {
+          "type": "array",
+          "required": false,
+          "description": "Array of port configurations"
+        },
+        "metadata": {
+          "type": "object",
+          "required": false,
+          "description": "Additional entity metadata"
+        }
+      }
+    }
+  },
+  "inlineCode": "async function updateCompanyInfrastructure(companyId, entity) {\n  try {\n    if (!entity.id) {\n      throw new Error('Entity ID is required for updates');\n    }\n    \n    const response = await fetch('/api/vector-memory', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        action: 'updateCompanyInfrastructure',\n        companyId: companyId,\n        entity: entity\n      })\n    });\n    \n    if (!response.ok) {\n      throw new Error(`HTTP error! status: ${response.status}`);\n    }\n    \n    const result = await response.json();\n    \n    if (!result.success) {\n      throw new Error(result.error || 'Failed to update infrastructure entity');\n    }\n    \n    return {\n      success: true,\n      entityId: entity.id,\n      companyId: companyId,\n      message: `Updated infrastructure entity '${entity.name || entity.id}' in company ${companyId}`,\n      timestamp: new Date().toISOString()\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: error.message,\n      timestamp: new Date().toISOString()\n    };\n  }\n}",
+  "dependencies": [],
+  "timeout": 15000,
+  "retries": 2,
+  "metadata": {
+    "category": "vector-memory",
+    "tags": ["company", "infrastructure", "update", "modify"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

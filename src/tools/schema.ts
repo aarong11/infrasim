@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ExecutionEnvironment } from '../core/plugin-system';
 
 // Base action schema
 export const BaseActionSchema = z.object({
@@ -129,12 +130,92 @@ export const ChatActionSchema = z.object({
   action: z.literal('chat'),
   parameters: z.object({
     message: z.string().describe('User message for general conversation'),
+    messages: z.array(z.object({
+      id: z.string().optional(),
+      role: z.enum(['user', 'assistant', 'system']).describe('Message role for proper chat formatting'),
+      content: z.string().describe('Message content'),
+      timestamp: z.string().optional().describe('Message timestamp'),
+      context: z.record(z.any()).optional().describe('Message context data')
+    })).optional().describe('Full conversation history with proper role formatting'),
     context: z.object({
+      // New context-aware properties
+      appContext: z.object({
+        mode: z.enum(['general_assistance', 'infrastructure_management', 'company_management', 'api_management', 'simulation_control']),
+        currentCompanyId: z.string().optional(),
+        currentEntityId: z.string().optional(),
+        viewState: z.object({
+          activeTab: z.string().optional(),
+          selectedEntity: z.string().optional(),
+          sidebarOpen: z.boolean().optional()
+        }).optional(),
+        metadata: z.record(z.any()).optional()
+      }).optional().describe('Current application context and mode'),
+      contextMode: z.enum(['general_assistance', 'infrastructure_management', 'company_management', 'api_management', 'simulation_control']).optional().describe('Current context mode'),
+      
+      // Existing properties
       companyId: z.string().optional(),
       companyName: z.string().optional(),
-      currentInfrastructure: z.array(z.string()).optional().describe('List of current infrastructure component names'),
-      topic: z.string().optional().describe('Current conversation topic')
-    }).optional().describe('Context about the current infrastructure and conversation')
+      currentInfrastructure: z.array(z.object({
+        name: z.string().optional(),
+        type: z.string().optional(),
+        hostname: z.string().optional(),
+        ip: z.string().optional(),
+        ports: z.array(z.any()).optional(),
+        connections: z.array(z.string()).optional(),
+        description: z.string().optional()
+      })).optional().describe('Detailed current infrastructure components'),
+      chatHistory: z.array(z.object({
+        type: z.enum(['user', 'assistant', 'system']),
+        role: z.enum(['user', 'assistant', 'system']).describe('Message role for LLM compatibility'),
+        content: z.string(),
+        timestamp: z.string(),
+        id: z.string().optional().describe('Message ID')
+      })).optional().describe('Recent chat conversation history with roles'),
+      simulationState: z.object({
+        isRunning: z.boolean(),
+        entityCount: z.number(),
+        lastUpdate: z.string()
+      }).optional().describe('Current simulation state'),
+      topic: z.string().optional().describe('Current conversation topic'),
+      sessionStarted: z.string().optional().describe('When the chat session started')
+    }).optional().describe('Context about the current infrastructure, conversation, and application state')
+  })
+});
+
+// Plugin execution tool schema
+export const ExecutePluginSchema = z.object({
+  action: z.literal('executePlugin'),
+  parameters: z.object({
+    pluginName: z.string().min(1, 'Plugin name is required').describe('Name of the plugin to execute'),
+    parameters: z.record(z.any()).describe('Parameters to pass to the plugin'),
+    environment: z.nativeEnum(ExecutionEnvironment).optional().describe('Override execution environment'),
+    task: z.string().optional().describe('Task description for environment auto-detection')
+  })
+});
+
+// Plugin creation tool schema
+export const CreatePluginSchema = z.object({
+  action: z.literal('createPlugin'),
+  parameters: z.object({
+    name: z.string().min(1, 'Plugin name is required').describe('Unique plugin name'),
+    description: z.string().min(1, 'Description is required').describe('Plugin description'),
+    environment: z.nativeEnum(ExecutionEnvironment).describe('Execution environment'),
+    code: z.string().min(1, 'Code is required').describe('Plugin inline code'),
+    parameters: z.record(z.object({
+      type: z.enum(['string', 'number', 'boolean', 'object', 'array']),
+      required: z.boolean().default(false),
+      description: z.string().optional(),
+      default: z.any().optional()
+    })).optional().describe('Plugin parameter definitions')
+  })
+});
+
+// List plugins tool schema
+export const ListPluginsSchema = z.object({
+  action: z.literal('listPlugins'),
+  parameters: z.object({
+    environment: z.nativeEnum(ExecutionEnvironment).optional().describe('Filter by execution environment'),
+    search: z.string().optional().describe('Search query for plugin names or descriptions')
   })
 });
 
@@ -147,7 +228,10 @@ export const ToolActionSchema = z.discriminatedUnion('action', [
   SearchCompaniesSchema,
   ControlSimulationSchema,
   ModifyInfrastructureActionSchema,
-  ChatActionSchema
+  ChatActionSchema,
+  ExecutePluginSchema,
+  CreatePluginSchema,
+  ListPluginsSchema
 ]);
 
 // Type definitions
@@ -159,6 +243,9 @@ export type ExpandInfrastructureAction = z.infer<typeof ExpandInfrastructureSche
 export type SearchCompaniesAction = z.infer<typeof SearchCompaniesSchema>;
 export type ControlSimulationAction = z.infer<typeof ControlSimulationSchema>;
 export type ModifyInfrastructureAction = z.infer<typeof ModifyInfrastructureActionSchema>;
+export type ExecutePluginAction = z.infer<typeof ExecutePluginSchema>;
+export type CreatePluginAction = z.infer<typeof CreatePluginSchema>;
+export type ListPluginsAction = z.infer<typeof ListPluginsSchema>;
 
 // Tool metadata for help and documentation
 export const ToolMetadata = {

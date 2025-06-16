@@ -1,0 +1,25 @@
+{
+  "pluginName": "parseInfrastructureDescription",
+  "version": "1.0.0",
+  "description": "Parse natural language infrastructure descriptions into structured entities using LLM",
+  "executionContext": "server",
+  "parameters": {
+    "description": {
+      "type": "string",
+      "required": true,
+      "description": "Natural language description of infrastructure to parse"
+    }
+  },
+  "inlineCode": "async function parseInfrastructureDescription(description) {\n  try {\n    const response = await fetch('/api/vector-memory', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        action: 'parseInfrastructure',\n        description: description\n      })\n    });\n    \n    if (!response.ok) {\n      throw new Error(`HTTP error! status: ${response.status}`);\n    }\n    \n    const result = await response.json();\n    \n    if (!result.success) {\n      throw new Error(result.error || 'Failed to parse infrastructure description');\n    }\n    \n    return {\n      success: true,\n      parsedEntities: result.parsed,\n      originalDescription: description,\n      entitiesCount: result.parsed ? result.parsed.length : 0,\n      message: `Parsed infrastructure description into ${result.parsed ? result.parsed.length : 0} entities`,\n      timestamp: new Date().toISOString()\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: error.message,\n      timestamp: new Date().toISOString()\n    };\n  }\n}",
+  "dependencies": [],
+  "timeout": 20000,
+  "retries": 2,
+  "metadata": {
+    "category": "vector-memory",
+    "tags": ["infrastructure", "parse", "nlp", "description"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

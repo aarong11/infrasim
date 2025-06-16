@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ProcessingMode } from '../core/langchain-orchestrator';
-import { ModelRole } from '../core/model-manager';
+import React, { useState } from 'react';
+import { ProcessingMode, ModelRole } from '../types/models';
 import { useAppStore } from '../store/app-store';
+import { useSettingsStore } from '../store/settings-store';
 
 interface ModelConfig {
   id: string;
   name: string;
-  type: 'ollama' | 'openai' | 'anthropic' | 'local';
+  type: 'ollama' | 'openai' | 'anthropic' | 'local' | 'lambda';
   processingMode: ProcessingMode;
   requiresApiKey: boolean;
   requiresOllamaHost: boolean;
@@ -17,6 +17,37 @@ interface ModelConfig {
 }
 
 const AVAILABLE_MODELS: ModelConfig[] = [
+  // Lambda Labs Models
+  {
+    id: 'llama-4-maverick-17b-128e-instruct-fp8',
+    name: 'Llama 4 Maverick 17B (Lambda Labs)',
+    type: 'lambda',
+    processingMode: ProcessingMode.OPENAI_TOOLS,
+    requiresApiKey: true,
+    requiresOllamaHost: false,
+    description: 'Lambda Labs high-performance Llama 4 model with OpenAI-compatible API for chat and function calling',
+    recommendedFor: [ModelRole.CHAT, ModelRole.TOOLS]
+  },
+  {
+    id: 'llama-3.1-8b-instruct',
+    name: 'Llama 3.1 8B Instruct (Lambda Labs)',
+    type: 'lambda',
+    processingMode: ProcessingMode.OPENAI_TOOLS,
+    requiresApiKey: true,
+    requiresOllamaHost: false,
+    description: 'Fast and efficient Llama 3.1 8B model with instruction following capabilities',
+    recommendedFor: [ModelRole.CHAT]
+  },
+  {
+    id: 'llama-3.1-70b-instruct',
+    name: 'Llama 3.1 70B Instruct (Lambda Labs)',
+    type: 'lambda',
+    processingMode: ProcessingMode.OPENAI_TOOLS,
+    requiresApiKey: true,
+    requiresOllamaHost: false,
+    description: 'Large-scale Llama 3.1 70B model for complex reasoning and tool usage',
+    recommendedFor: [ModelRole.TOOLS]
+  },
   // Ollama Models optimized for different roles
   {
     id: 'llama3-groq-tool-use:latest',
@@ -108,58 +139,36 @@ interface DualModelConfig {
   ollamaHost: string;
   openaiApiKey: string;
   anthropicApiKey: string;
+  lambdaApiKey: string;
   temperature: number;
   maxRetries: number;
 }
 
 interface Settings extends DualModelConfig {
   // Extends DualModelConfig for consistency
+  modelMode: 'single' | 'dual'; // New setting for model mode
 }
 
 export const SettingsModal: React.FC = () => {
   const { showSettings, setShowSettings } = useAppStore();
-
-  const [settings, setSettings] = useState<Settings>({
-    chatModel: 'llama3.2:latest',
-    toolsModel: 'llama3-groq-tool-use:latest',
-    ollamaHost: 'http://localhost:11434',
-    openaiApiKey: '',
-    anthropicApiKey: '',
-    temperature: 0.1,
-    maxRetries: 3
-  });
+  const { settings, updateSettings } = useSettingsStore();
 
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('infrasim-settings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings({ ...settings, ...parsed });
-      } catch (error) {
-        console.error('Failed to parse saved settings:', error);
-      }
-    }
-  }, []);
 
   const chatModelConfig = AVAILABLE_MODELS.find(m => m.id === settings.chatModel);
   const toolsModelConfig = AVAILABLE_MODELS.find(m => m.id === settings.toolsModel);
 
   const handleSettingChange = (key: keyof Settings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    updateSettings({ [key]: value });
     setIsDirty(true);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Save to localStorage
-      localStorage.setItem('infrasim-settings', JSON.stringify(settings));
-      
-      // Notify parent component of model change
+      // Settings are automatically persisted by the store
+      console.log('✅ Settings saved to localStorage');
       setIsDirty(false);
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -244,6 +253,7 @@ export const SettingsModal: React.FC = () => {
                       chatModelConfig.type === 'ollama' ? 'bg-green-600' :
                       chatModelConfig.type === 'openai' ? 'bg-blue-600' :
                       chatModelConfig.type === 'anthropic' ? 'bg-purple-600' :
+                      chatModelConfig.type === 'lambda' ? 'bg-yellow-600' :
                       'bg-gray-600'
                     } text-white`}>
                       {chatModelConfig.type.toUpperCase()}
@@ -296,6 +306,7 @@ export const SettingsModal: React.FC = () => {
                       toolsModelConfig.type === 'ollama' ? 'bg-green-600' :
                       toolsModelConfig.type === 'openai' ? 'bg-blue-600' :
                       toolsModelConfig.type === 'anthropic' ? 'bg-purple-600' :
+                      toolsModelConfig.type === 'lambda' ? 'bg-yellow-600' :
                       'bg-gray-600'
                     } text-white`}>
                       {toolsModelConfig.type.toUpperCase()}
@@ -318,6 +329,44 @@ export const SettingsModal: React.FC = () => {
 
         {/* Shared Configuration */}
         <div className="mt-8 space-y-6">
+          {/* Model Mode Configuration */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-3">Model Configuration Mode</h3>
+            <div className="bg-gray-700 p-4 rounded-lg">
+              <div className="flex items-center space-x-4 mb-3">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="modelMode"
+                    value="single"
+                    checked={settings.modelMode === 'single'}
+                    onChange={(e) => handleSettingChange('modelMode', e.target.value)}
+                    className="text-cyan-600"
+                  />
+                  <span className="text-white">Single Model</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="modelMode"
+                    value="dual"
+                    checked={settings.modelMode === 'dual'}
+                    onChange={(e) => handleSettingChange('modelMode', e.target.value)}
+                    className="text-cyan-600"
+                  />
+                  <span className="text-white">Dual Model</span>
+                </label>
+              </div>
+              <div className="text-sm text-gray-300">
+                {settings.modelMode === 'single' ? (
+                  <p>🔧 <strong>Single Model:</strong> Uses the Tools model for all operations (chat, infrastructure parsing, etc). Simpler setup with one model handling everything.</p>
+                ) : (
+                  <p>💬🔧 <strong>Dual Model:</strong> Uses separate Chat and Tools models. Chat model for conversations, Tools model for infrastructure operations. More specialized but requires configuring two models.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Ollama Configuration */}
           {(chatModelConfig?.requiresOllamaHost || toolsModelConfig?.requiresOllamaHost) && (
             <div>
@@ -375,6 +424,21 @@ export const SettingsModal: React.FC = () => {
                       placeholder="sk-ant-..."
                       className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
                     />
+                  </div>
+                )}
+                {(chatModelConfig?.type === 'lambda' || toolsModelConfig?.type === 'lambda') && (
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-2">Lambda Labs API Key:</label>
+                    <input
+                      type="password"
+                      value={settings.lambdaApiKey}
+                      onChange={(e) => handleSettingChange('lambdaApiKey', e.target.value)}
+                      placeholder="secret_rng_..."
+                      className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
+                    />
+                    <p className="text-gray-400 text-xs mt-1">
+                      Lambda Labs API key for accessing their models via OpenAI-compatible API
+                    </p>
                   </div>
                 )}
               </div>

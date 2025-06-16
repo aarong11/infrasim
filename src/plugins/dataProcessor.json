@@ -1,0 +1,27 @@
+{
+  "pluginName": "dataProcessor",
+  "version": "1.0.0-demo",
+  "description": "Process CSV data and generate statistics",
+  "executionContext": "server",
+  "parameters": {
+    "csvData": {
+      "type": "string",
+      "required": true,
+      "description": "CSV data to process"
+    },
+    "includeHeaders": {
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the CSV includes headers"
+    }
+  },
+  "inlineCode": "\nfunction dataProcessor(csvData, includeHeaders = true) {\n  try {\n    const lines = csvData.trim().split('\\n');\n    const headers = includeHeaders ? lines.shift().split(',') : [];\n    const rows = lines.map(line => line.split(','));\n    \n    const stats = {\n      totalRows: rows.length,\n      totalColumns: rows[0]?.length || 0,\n      headers: headers,\n      sampleData: rows.slice(0, 3),\n      processedAt: new Date().toISOString()\n    };\n    \n    return {\n      success: true,\n      result: stats,\n      message: `Processed ${stats.totalRows} rows with ${stats.totalColumns} columns`\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: error.message,\n      message: 'Failed to process CSV data'\n    };\n  }\n}",
+  "dependencies": [],
+  "timeout": 10000,
+  "retries": 0,
+  "metadata": {
+    "createdBy": "demo",
+    "purpose": "demonstration"
+  }
+}

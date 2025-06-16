@@ -1,5 +1,4 @@
-// Fixed version of VectorMemoryManager with dynamic FAISS import and server-only safeguards
-
+import { FaissStore } from "@langchain/community/vectorstores/faiss";
 import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { Document } from "@langchain/core/documents";
 import { CompanyMemoryRecord, VectorSearchResult } from '../types/infrastructure';
@@ -10,11 +9,8 @@ let instance: VectorMemoryManager | null = null;
 
 export class VectorMemoryManager {
   private static initializationPromise: Promise<void> | null = null;
-
   private embeddings: OllamaEmbeddings;
-  private vectorStore: any = null; // Avoid early static import
-  private FaissStore: any = null; // Lazy FAISS loader
-
+  private vectorStore: any = null;
   private storePath: string;
   private isInitialized = false;
 
@@ -23,8 +19,11 @@ export class VectorMemoryManager {
       baseUrl: ollamaBaseUrl,
       model: "llama3.2:latest",
     });
-    this.storePath = path.join(process.cwd(), 'data', 'vector-store');
-    this.ensureDataDirectory();
+    
+    if (typeof window === 'undefined') {
+      this.storePath = path.join(process.cwd(), 'data', 'vector-store');
+      this.ensureDataDirectory();
+    }
   }
 
   static getInstance(ollamaBaseUrl: string = 'http://localhost:11434'): VectorMemoryManager {
@@ -35,22 +34,14 @@ export class VectorMemoryManager {
   }
 
   private ensureDataDirectory() {
-    // Only run in Node.js
     if (typeof window !== 'undefined') {
       console.warn('VectorMemoryManager: skipping filesystem ops in browser.');
       return;
     }
-
+    
     if (!fs.existsSync(this.storePath)) {
       fs.mkdirSync(this.storePath, { recursive: true });
       console.log(`✅ Created vector memory directory: ${this.storePath}`);
-    }
-  }
-
-  private async ensureFaiss(): Promise<void> {
-    if (!this.FaissStore) {
-      const mod = await import('@langchain/community/vectorstores/faiss');
-      this.FaissStore = mod.FaissStore;
     }
   }
 
@@ -68,7 +59,6 @@ export class VectorMemoryManager {
 
   private async doInitialize(): Promise<void> {
     console.log('🚀 Vector Memory Manager initializing...');
-    await this.ensureFaiss();
 
     try {
       await this.loadVectorStore();
@@ -83,11 +73,13 @@ export class VectorMemoryManager {
   }
 
   private async loadVectorStore(): Promise<void> {
+    if (typeof window !== 'undefined') return;
+    
     const faissPath = path.join(this.storePath, 'faiss.index');
     const docstorePath = path.join(this.storePath, 'docstore.json');
-
+    
     if (fs.existsSync(faissPath) && fs.existsSync(docstorePath)) {
-      this.vectorStore = await this.FaissStore.load(this.storePath, this.embeddings);
+      this.vectorStore = await FaissStore.load(this.storePath, this.embeddings);
     } else {
       throw new Error('Vector store files not found');
     }
@@ -99,7 +91,7 @@ export class VectorMemoryManager {
       metadata: { id: "init", isInit: true }
     });
 
-    this.vectorStore = await this.FaissStore.fromDocuments([dummyDoc], this.embeddings);
+    this.vectorStore = await FaissStore.fromDocuments([dummyDoc], this.embeddings);
     await this.saveVectorStore();
   }
 
@@ -117,8 +109,8 @@ export class VectorMemoryManager {
       pageContent: content,
       metadata: {
         ...record,
-        createdAt: record.createdAt.toISOString(),
-        updatedAt: record.updatedAt.toISOString(),
+        createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
+        updatedAt: record.updatedAt instanceof Date ? record.updatedAt.toISOString() : record.updatedAt,
       }
     });
 
@@ -127,8 +119,41 @@ export class VectorMemoryManager {
   }
 
   public async updateCompanyRecord(record: CompanyMemoryRecord): Promise<void> {
+    await this.initialize();
+    
     record.updatedAt = new Date();
-    await this.addCompanyRecord(record);
+    
+    try {
+      const allCompanies = await this.getAllCompanies();
+      const updatedCompanies = allCompanies.filter(c => c.id !== record.id);
+      updatedCompanies.push(record);
+      
+      await this.recreateVectorStoreWithCompanies(updatedCompanies);
+      
+      console.log(`✅ Updated company record: ${record.name} (ID: ${record.id})`);
+    } catch (error) {
+      console.error('Failed to update company record:', error);
+      await this.addCompanyRecord(record);
+    }
+  }
+
+  private async recreateVectorStoreWithCompanies(companies: CompanyMemoryRecord[]): Promise<void> {
+    await this.recreateVectorStore();
+    
+    for (const company of companies) {
+      const content = this.createSearchableContent(company);
+      const document = new Document({
+        pageContent: content,
+        metadata: {
+          ...company,
+          createdAt: company.createdAt instanceof Date ? company.createdAt.toISOString() : company.createdAt,
+          updatedAt: company.updatedAt instanceof Date ? company.updatedAt.toISOString() : company.updatedAt,
+        }
+      });
+      await this.vectorStore!.addDocuments([document]);
+    }
+    
+    await this.saveVectorStore();
   }
 
   public async searchCompanies(query: string, limit: number = 5): Promise<VectorSearchResult[]> {
@@ -187,13 +212,15 @@ export class VectorMemoryManager {
   }
 
   private async backupCompanyData(): Promise<CompanyMemoryRecord[]> {
+    if (typeof window !== 'undefined') return [];
+    
     try {
       const docstorePath = path.join(this.storePath, 'docstore.json');
       if (!fs.existsSync(docstorePath)) return [];
-
+      
       const docstore = JSON.parse(fs.readFileSync(docstorePath, 'utf8'));
       const companies: CompanyMemoryRecord[] = [];
-
+      
       if (Array.isArray(docstore) && Array.isArray(docstore[0])) {
         for (const [id, docData] of docstore[0]) {
           if (docData?.metadata && !docData.metadata.isInit) {
@@ -210,7 +237,6 @@ export class VectorMemoryManager {
           }
         }
       }
-
       return companies;
     } catch (err) {
       console.error('Backup read error:', err);
@@ -219,14 +245,18 @@ export class VectorMemoryManager {
   }
 
   private async recreateVectorStore(): Promise<void> {
+    if (typeof window !== 'undefined') return;
+    
     const faissPath = path.join(this.storePath, 'faiss.index');
     const docstorePath = path.join(this.storePath, 'docstore.json');
+    
     try {
       if (fs.existsSync(faissPath)) fs.unlinkSync(faissPath);
       if (fs.existsSync(docstorePath)) fs.unlinkSync(docstorePath);
     } catch (err) {
       console.error('Error deleting vector store files:', err);
     }
+    
     await this.createEmptyVectorStore();
   }
 

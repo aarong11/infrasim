@@ -1,526 +1,494 @@
-# InfraSim - Infrastructure Simulation Platform Documentation
+# InfraSim - AI-Powered Infrastructure Simulation Platform
 
-> ☕ **Support the Developer**: If you find this project helpful, please consider supporting: [Ko-fi.com/rng](https://ko-fi.com/rng)
+<div align="center">
+  <h3>🏗️ Design • 🤖 Simulate • 📊 Analyze</h3>
+  <p>Advanced infrastructure modeling and simulation with AI-powered assistance</p>
+</div>
 
 ## Overview
 
-InfraSim is a sophisticated infrastructure simulation platform that uses Large Language Models (LLMs) and vector databases to create, manage, and simulate complex infrastructure environments. The platform leverages structured tool calling, vector memory management, and real-time API generation capabilities.
+InfraSim is a comprehensive infrastructure simulation platform that combines modern web technologies with artificial intelligence to help you design, model, and analyze IT infrastructure. Built with Next.js 14, TypeScript, and LangChain, it provides an intuitive interface for creating complex infrastructure topologies and simulating their behavior in real-time.
+
+### Key Features
+
+- 🤖 **AI-Powered Design** - Natural language infrastructure generation using multiple LLM providers
+- 🎯 **Interactive Modeling** - Visual drag-and-drop infrastructure builder with ReactFlow
+- 💬 **Intelligent Chat** - Context-aware AI assistant with full infrastructure knowledge
+- 🔄 **Real-Time Simulation** - Live infrastructure behavior simulation and monitoring
+- 🗄️ **Vector Memory** - Persistent company and infrastructure storage with semantic search
+- 🔧 **Multi-Model Support** - Lambda Labs, OpenAI, Ollama, and local model compatibility
+- 📊 **Advanced Analytics** - Network topology analysis and performance insights
+
+## Quick Start
+
+### Prerequisites
+
+- **Node.js 18+** - Runtime environment
+- **NPM/Yarn** - Package manager
+- **Ollama** (optional) - For local AI models
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/infrasim.git
+   cd infrasim
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. **Set up local AI models (optional)**
+   ```bash
+   npm run ollama:setup
+   ```
+
+4. **Start the development environment**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open your browser**
+   ```
+   http://localhost:3000
+   ```
+
+### Environment Setup
+
+Create a `.env.local` file for API keys (optional):
+
+```env
+# Lambda Labs API (recommended)
+LAMBDA_LABS_API_KEY=your_lambda_labs_api_key
+
+# OpenAI API (alternative)
+OPENAI_API_KEY=your_openai_api_key
+
+# Anthropic API (planned)
+ANTHROPIC_API_KEY=your_anthropic_api_key
+```
+
+## Usage Guide
+
+### 1. Getting Started
+
+**First Launch:**
+1. Open InfraSim in your browser
+2. Click the settings gear icon to configure your AI models
+3. Add API keys or set up local Ollama models
+4. Start creating your first infrastructure!
+
+### 2. Creating Infrastructure
+
+**Method 1: Natural Language Generation**
+```
+"Create a fintech company called NeoBank with a web portal, 
+core banking database, and security firewall"
+```
+
+**Method 2: Visual Designer**
+- Use the "+" button to add components
+- Drag nodes to position them
+- Click and drag between ports to create connections
+- Right-click nodes for configuration options
+
+**Method 3: AI Chat Assistant**
+- Type natural language requests in the chat
+- Ask questions about your infrastructure
+- Request modifications and improvements
+
+### 3. Infrastructure Components
+
+#### Supported Entity Types
+- 🌐 **Web Applications** - Frontend services, portals, dashboards
+- 🗄️ **Databases** - SQL, NoSQL, data warehouses
+- 🔌 **API Services** - REST, GraphQL, microservices
+- ⚖️ **Load Balancers** - Traffic distribution, high availability
+- 🛡️ **Firewalls** - Network security, access control
+- 🌍 **DNS Servers** - Domain name resolution
+- ⏰ **NTP Servers** - Time synchronization
+
+#### Component Properties
+Each component includes:
+- **Basic Info**: Name, hostname, IP address
+- **Network Config**: Ports, protocols, services
+- **Connections**: Linked components and relationships
+- **Metadata**: Descriptions, compliance tags, custom properties
+
+### 4. AI Features
+
+#### Chat Assistant
+The AI assistant provides context-aware help:
+- **Infrastructure Analysis**: "Analyze the security of my current setup"
+- **Recommendations**: "How can I improve scalability?"
+- **Troubleshooting**: "Why might my database be a bottleneck?"
+- **Best Practices**: "What compliance standards should I consider?"
+
+#### Natural Language Processing
+Convert descriptions into infrastructure:
+- **Company Profiles**: Extract industry, compliance requirements, core services
+- **Infrastructure Parsing**: Generate components from descriptions
+- **Relationship Inference**: Automatically detect component connections
+
+#### Vector Memory
+Intelligent storage and retrieval:
+- **Semantic Search**: Find similar companies and patterns
+- **Context Building**: Maintain conversation and infrastructure history
+- **Pattern Recognition**: Learn from previous infrastructure designs
+
+### 5. Simulation Engine
+
+#### Real-Time Monitoring
+- **Component Status**: Live health and performance indicators
+- **Network Traffic**: Connection utilization and throughput
+- **Alerts**: Security issues, performance bottlenecks
+- **Logs**: Detailed component activity and events
+
+#### Simulation Controls
+- **Start/Stop**: Control simulation execution
+- **Speed**: Adjust simulation tick rate
+- **Scenarios**: Test different load patterns and failure modes
 
 ## Architecture Overview
 
-### Core Components
+### Technology Stack
 
-1. **LangChain Orchestrator** - Core LLM integration and structured output parsing
-2. **Vector Memory Manager** - Company data storage and semantic search
-3. **Structured Tool System** - Natural language command processing
-4. **Simulation Engine** - Infrastructure entity simulation and management
-5. **OpenAPI Stub Generator** - Dynamic API specification generation
+**Frontend:**
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **ReactFlow** - Interactive node-based UI
+- **Tailwind CSS** - Utility-first styling
+- **Zustand** - Lightweight state management
 
----
+**Backend:**
+- **Next.js API Routes** - Serverless API endpoints
+- **LangChain** - AI/LLM integration framework
+- **FAISS** - Vector similarity search
+- **Zod** - Runtime type validation
 
-## API Endpoints
+**AI Integration:**
+- **Lambda Labs** - High-performance Llama models
+- **OpenAI** - GPT models with function calling
+- **Ollama** - Local model execution
+- **Custom Parsers** - Robust JSON extraction and validation
 
-### Next.js API Routes
+### System Architecture
 
-#### `/api/vector-memory` (Route Handler)
-- **File**: `src/app/api/vector-memory/route.ts`
-- **Methods**: GET, POST, DELETE
-- **Purpose**: Vector database operations for company records
-- **Authentication**: None (development)
-- **Rate Limiting**: None implemented
-
-**GET** - Retrieve companies
-```typescript
-// Query parameters: ?query=string&limit=number
-Response: { companies: CompanyMemoryRecord[] }
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   React UI      │───▶│   API Routes     │───▶│   LLM Providers │
+│   Components    │    │   (Next.js)      │    │   (Multi-model) │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                        │
+         ▼                       ▼                        ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Zustand       │    │   Vector Memory  │    │   Tool System   │
+│   State         │    │   (FAISS)        │    │   (Zod Schema)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-**POST** - Add company
-```typescript
-Request: CompanyMemoryRecord
-Response: { success: boolean, id: string }
-```
+## API Reference
 
-**DELETE** - Clear all companies
-```typescript
-Response: { success: boolean, message: string }
-```
+### Core Endpoints
 
-### Internal Service APIs
-
-#### Infrastructure Simulation APIs
-- **Health Check**: `/health` - Basic service status
-- **Status**: `/status` - Detailed service information
-- **Entity Management**: Dynamic endpoints based on entity configuration
-
----
-
-## Large Language Model (LLM) Integration
-
-### 1. LangChain Orchestrator (`src/core/langchain-orchestrator.ts`)
-
-**Model**: `smangrul/llama-3-8b-instruct-function-calling` (Ollama)
-**Base URL**: `http://localhost:11434` (configurable)
-
-#### LLM Usage Patterns:
-
-**Infrastructure Parsing**
-```typescript
-// Parses natural language descriptions into structured infrastructure
-async parseInfrastructureDescription(description: string): Promise<ParsedInfrastructure>
-```
-
-**Organization Profile Generation**
-```typescript
-// Creates company profiles from descriptions
-async createRootOrganizationWithMemory(description: string): Promise<Partial<InfrastructureEntity>>
-```
-
-**Entity Description Enhancement**
-```typescript
-// Enhances infrastructure entity descriptions
-async enhanceEntityDescription(entity: InfrastructureEntity): Promise<string>
-```
-
-### 2. Structured Tool Parser (`src/tools/parser.ts`)
-
-**Model**: `smangrul/llama-3-8b-instruct-function-calling`
-**Purpose**: Natural language command parsing into structured tool actions
+#### `/api/vector-memory` - Main API
+Central endpoint for all operations:
 
 ```typescript
-// Parses natural language into tool actions
-async parseInput(input: string): Promise<ToolParseResult>
-```
+// Company Management
+POST /api/vector-memory
+{
+  "action": "addCompany",
+  "company": { /* CompanyData */ }
+}
 
-### 3. Company Profile Generator (`src/modules/companies-house/CompanyProfileGenerator.ts`)
+// Infrastructure Operations
+POST /api/vector-memory
+{
+  "action": "getCompanyInfrastructure",
+  "companyId": "uuid"
+}
 
-**Model**: `smangrul/llama-3-8b-instruct-function-calling`
-**Purpose**: Generate realistic company profiles
-
-```typescript
-// Generates comprehensive company profiles
-async generateCompanyProfile(name: string, description: string): Promise<CompanyProfile>
-```
-
-### 4. Infrastructure Builder (`src/modules/companies-house/InfrastructureBuilder.ts`)
-
-**Model**: `smangrul/llama-3-8b-instruct-function-calling`
-**Purpose**: Generate infrastructure topologies and OpenAPI specifications
-
-```typescript
-// Builds infrastructure from company profiles
-async buildInfrastructure(companyProfile: CompanyProfile, targetCount: number): Promise<InfrastructureEntity[]>
-
-// Generates OpenAPI specifications
-private async generateOpenApiStub(serviceName: string, serviceDescription: string): Promise<string>
-```
-
----
-
-## Schema Enforcement
-
-### 1. Zod Schema Definitions
-
-#### Core Infrastructure Schemas (`src/core/langchain-orchestrator.ts`)
-
-```typescript
-// Infrastructure entity validation
-const InfrastructureEntitySchema = z.object({
-  name: z.string().describe('Entity name'),
-  type: z.enum(['dns_server', 'ntp_server', 'web_app', 'database', 'firewall', 'load_balancer', 'social_agent', 'api_service']),
-  hostname: z.string().describe('Hostname'),
-  ports: z.array(z.object({
-    number: z.number().int().min(1).max(65535),
-    protocol: z.enum(['tcp', 'udp']),
-    service: z.string(),
-    status: z.enum(['open', 'closed', 'filtered']).default('open')
-  })),
-  metadata: z.object({
-    description: z.string().optional()
-  }).optional()
-});
-
-// Organization profile validation
-const OrganizationProfileSchema = z.object({
-  name: z.string().describe('Company/organization name'),
-  description: z.string().describe('Professional business description'),
-  sector: z.string().describe('Business sector'),
-  coreFunctions: z.array(z.string()).min(3).max(5).describe('Core business functions')
-});
-```
-
-#### Tool Action Schemas (`src/tools/schema.ts`)
-
-**Create Company Schema**
-```typescript
-export const CreateCompanySchema = z.object({
-  action: z.literal('createCompany'),
-  parameters: z.object({
-    name: z.string().min(1, 'Company name is required'),
-    description: z.string().min(10, 'Description must be at least 10 characters'),
-    industry: z.enum(['banking', 'fintech', 'tech', 'healthcare', 'logistics', 'defense', 'retail', 'energy', 'manufacturing', 'telecom', 'public']),
-    tags: z.array(z.string()).min(1, 'At least one tag is required'),
-    services: z.array(z.string()).min(1, 'At least one service is required'),
-    // ... additional fields
-  })
-});
-```
-
-**Generate API Schema**
-```typescript
-export const GenerateApiSchema = z.object({
-  action: z.literal('generateApi'),
-  parameters: z.object({
-    companyId: z.string().uuid(),
-    apiType: z.enum(['rest', 'graphql', 'grpc', 'websocket']).default('rest'),
-    serviceName: z.string().min(1, 'Service name is required'),
-    endpoints: z.array(z.object({
-      path: z.string(),
-      method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']),
-      description: z.string(),
-      requestBody: z.record(z.any()).optional(),
-      responseBody: z.record(z.any()).optional()
-    })),
-    authentication: z.enum(['none', 'apikey', 'oauth2', 'jwt', 'basic']).default('apikey'),
-    rateLimit: z.number().int().positive().optional()
-  })
-});
-```
-
-#### Infrastructure Builder Schemas (`src/modules/companies-house/InfrastructureBuilder.ts`)
-
-```typescript
-// Infrastructure topology validation
-const InfrastructureTopologySchema = z.object({
-  components: z.array(InfrastructureComponentSchema).min(1),
-  connections: z.array(z.object({
-    from: z.string().describe('Source component ID'),
-    to: z.string().describe('Target component ID')
-  }))
-});
-
-// OpenAPI specification validation
-const OpenApiSpecSchema = z.object({
-  openapi: z.literal('3.0.0'),
-  info: z.object({
-    title: z.string(),
-    version: z.string(),
-    description: z.string()
-  }),
-  paths: z.record(z.any()).describe('API endpoints')
-});
-```
-
-### 2. Structured Output Parsers
-
-#### Implementation Pattern
-```typescript
-// All LLM interactions use structured output parsers
-this.infrastructureParser = StructuredOutputParser.fromZodSchema(ParsedInfrastructureSchema);
-this.organizationParser = StructuredOutputParser.fromZodSchema(OrganizationProfileSchema);
-this.descriptionParser = StructuredOutputParser.fromZodSchema(EntityDescriptionSchema);
-```
-
-#### Schema-to-JSON Conversion
-```typescript
-// Automatic conversion using zod-to-json-schema
-import { zodToJsonSchema } from 'zod-to-json-schema';
-```
-
----
-
-## Tool System Architecture
-
-### Available Tools
-
-1. **createCompany** - Create new companies with validation
-2. **generateApi** - Generate API specifications for services
-3. **linkEntities** - Create connections between infrastructure entities
-4. **expandInfrastructure** - Add new infrastructure components
-5. **searchCompanies** - Search vector database for companies
-6. **controlSimulation** - Control simulation state
-
-### Tool Handler Implementation (`src/tools/handlers.ts`)
-
-```typescript
-export class ToolHandlers {
-  private async handleCreateCompany(action: CreateCompanyAction): Promise<ToolExecutionResult>
-  private async handleGenerateApi(action: GenerateApiAction): Promise<ToolExecutionResult>
-  private async handleSearchCompanies(action: SearchCompaniesAction): Promise<ToolExecutionResult>
-  private async handleControlSimulation(action: ControlSimulationAction): Promise<ToolExecutionResult>
-  // ... other handlers
+// AI Chat
+POST /api/vector-memory
+{
+  "action": "generateChatResponse",
+  "message": "How can I improve security?",
+  "context": { /* InfrastructureContext */ }
 }
 ```
 
-### Natural Language Processing Flow
-
-1. **Input**: Natural language command
-2. **Parsing**: LLM converts to structured tool action
-3. **Validation**: Zod schema validation
-4. **Execution**: Tool handler processes action
-5. **Response**: Structured result with success/error
-
----
-
-## Vector Memory System
-
-### Implementation (`src/core/vector-memory-manager.ts`)
-
-**Vector Store**: FAISS (Facebook AI Similarity Search)
-**Embeddings**: Local embeddings via Ollama
-**Storage**: Local filesystem (vector-store)
-
-#### Key Methods
+#### `/api/langchain-agent` - Tool Execution
+Structured tool-based operations:
 
 ```typescript
-export class VectorMemoryManager {
-  // Company operations
-  async addCompanyRecord(record: CompanyMemoryRecord): Promise<void>
-  async searchCompanies(query: string, limit: number = 5): Promise<VectorSearchResult[]>
-  async findSimilarCompanies(companyId: string, limit: number = 5): Promise<VectorSearchResult[]>
-  async getAllCompanies(): Promise<CompanyMemoryRecord[]>
-  
-  // Vector operations
-  private async generateEmbeddings(texts: string[]): Promise<number[][]>
-  private createSearchableText(record: CompanyMemoryRecord): string
+POST /api/langchain-agent
+{
+  "action": "modifyInfrastructure",
+  "parameters": {
+    "operation": "add",
+    "entity": { /* EntityData */ }
+  }
 }
 ```
 
-#### Company Record Schema
+#### `/api/lambda-proxy` - External LLM Proxy
+Handles external API calls with CORS protection:
 
 ```typescript
-export interface CompanyMemoryRecord {
+POST /api/lambda-proxy
+{
+  "model": "llama-4-maverick-17b-128e-instruct-fp8",
+  "messages": [{ "role": "user", "content": "..." }],
+  "temperature": 0.3
+}
+```
+
+### Data Schemas
+
+#### Company Schema
+```typescript
+interface CompanyMemoryRecord {
   id: string;
   name: string;
   description: string;
   sectorTags: string[];
   services: string[];
-  metadata: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
+  infrastructure?: InfrastructureEntity[];
+  metadata: {
+    industry: string;
+    compliance: string[];
+    employees: number;
+    founded: number;
+    headquarters: string;
+  };
 }
 ```
 
----
-
-## OpenAPI Generation
-
-### Dynamic API Stub Generator (`src/utils/openApiStubGenerator.ts`)
-
-**Purpose**: Generate realistic API specifications for infrastructure entities
-
-#### Generation Logic
-
+#### Infrastructure Entity Schema
 ```typescript
-export function generateOpenAPIStub(entity: InfrastructureEntity): Record<string, EndpointSpec>
+interface InfrastructureEntity {
+  id: string;
+  type: EntityType;
+  name: string;
+  hostname: string;
+  ip: string;
+  fidelity: FidelityLevel;
+  ports: Port[];
+  metadata: Record<string, any>;
+  position: { x: number; y: number };
+  connections: string[];
+}
 ```
 
-**Supported Entity Types**:
-- `API_SERVICE`
-- `WEB_APP`
+## Development
 
-#### Default Endpoints Generated
+### Project Structure
 
-1. **Health Check**: `GET /health`
-2. **Status**: `GET /status`
-3. **Function-specific endpoints** based on `coreFunctions` metadata
-
-#### Function-to-Endpoint Mapping
-
-- **Payment Functions**: `/send`, `/receive` endpoints
-- **Authentication**: `/login`, `/logout` endpoints
-- **User Management**: users CRUD endpoints
-- **Generic CRUD**: `/create`, `/get`, `/update`, `/delete`
-
----
-
-## Configuration Management
-
-### Environment Configuration
-
-```typescript
-// Default Ollama configuration
-const OLLAMA_BASE_URL = 'http://localhost:11434'
-const DEFAULT_MODEL = 'smangrul/llama-3-8b-instruct-function-calling'
 ```
+infrasim/
+├── src/
+│   ├── app/                 # Next.js App Router
+│   │   ├── api/            # API route handlers
+│   │   ├── infrastructure/ # Main application page
+│   │   └── layout.tsx      # Root layout
+│   ├── components/         # React components
+│   │   ├── InfrastructureMap.tsx
+│   │   ├── EntityNode.tsx
+│   │   └── ...
+│   ├── core/              # Business logic
+│   │   ├── langchain-orchestrator.ts
+│   │   ├── model-manager.ts
+│   │   └── vector-memory-manager.ts
+│   ├── store/             # State management
+│   ├── tools/             # AI tool definitions
+│   └── types/             # TypeScript types
+├── data/                  # Vector store data
+├── seed/                  # Sample data scripts
+└── postman/               # API testing
+```
+
+### Available Scripts
+
+```bash
+# Development
+npm run dev              # Start development server
+npm run build           # Build for production
+npm run start           # Start production server
+
+# Setup and Maintenance
+npm run setup           # Complete setup with Ollama
+npm run ollama:setup    # Download AI models
+npm run seed           # Populate sample data
+npm run reset-vector-db # Reset vector database
+
+# Utilities
+npm run lint           # Run ESLint
+npm run clean          # Clean build artifacts
+```
+
+### Development Workflow
+
+1. **Start Development Environment**
+   ```bash
+   npm run dev
+   ```
+   This automatically:
+   - Starts Ollama (if installed)
+   - Launches Next.js development server
+   - Enables hot reload for all components
+
+2. **Add New Components**
+   - Create React components in `src/components/`
+   - Add business logic to `src/core/`
+   - Define types in `src/types/`
+
+3. **Extend AI Capabilities**
+   - Add tool schemas in `src/tools/schema.ts`
+   - Implement handlers in `src/tools/handlers.ts`
+   - Test with LLM integration
+
+4. **Configure Models**
+   - Update model registry in `src/app/api/vector-memory/route.ts`
+   - Add new processing modes if needed
+   - Test with different providers
+
+## Configuration
 
 ### Model Configuration
 
-All LLM instances use consistent configuration:
+**Single Model Mode** (Recommended for beginners):
 ```typescript
-new ChatOllama({
-  baseUrl: ollamaBaseUrl,
-  model: 'smangrul/llama-3-8b-instruct-function-calling',
-  temperature: 0.1, // Low temperature for consistency
-});
-```
-
----
-
-## Error Handling and Validation
-
-### Validation Patterns
-
-1. **Input Validation**: Zod schemas validate all inputs
-2. **LLM Output Validation**: Structured parsers ensure valid responses
-3. **Fallback Mechanisms**: Graceful degradation when LLM parsing fails
-4. **Type Safety**: Full TypeScript coverage with strict typing
-
-### Error Response Format
-
-```typescript
-interface ToolExecutionResult {
-  success: boolean;
-  message: string;
-  data?: any;
-  error?: string;
-  executionTime?: number;
+{
+  modelMode: 'single',
+  toolsModel: 'llama-4-maverick-17b-128e-instruct-fp8',
+  // Uses same model for both chat and tools
 }
 ```
 
----
-
-## Testing and Development
-
-### Test Scripts
-
-1. **`test-structured-tools.js`** - Tool system testing
-2. **`test-vector-db.js`** - Vector database testing
-3. **`demo-structured-tools.ts`** - Comprehensive demo
-4. **`vector-memory-demo.ts`** - Vector memory demonstration
-
-### Development Commands
-
-```bash
-# Start development server with Ollama
-yarn dev
-
-# Setup Ollama models
-yarn ollama:setup
-
-# Seed vector database
-yarn seed:companies
-
-# Run individual tests
-node test-structured-tools.js
-node test-vector-db.js
+**Dual Model Mode** (Advanced users):
+```typescript
+{
+  modelMode: 'dual',
+  chatModel: 'gpt-4',                                    // For conversations
+  toolsModel: 'llama-4-maverick-17b-128e-instruct-fp8', // For structured tasks
+}
 ```
 
----
+### Environment Variables
 
-## Security Considerations
+```env
+# Server-side API keys (recommended)
+LAMBDA_LABS_API_KEY=your_key_here
+OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
 
-### Current State (Development)
-
-- **No Authentication**: APIs are open for development
-- **No Rate Limiting**: Unlimited requests allowed
-- **Local LLM**: All processing happens locally
-- **No Input Sanitization**: Basic validation only
-
-### Production Recommendations
-
-1. **API Authentication**: Implement JWT or API key authentication
-2. **Rate Limiting**: Add request throttling
-3. **Input Sanitization**: Enhanced validation and sanitization
-4. **CORS Configuration**: Proper cross-origin request handling
-5. **Logging and Monitoring**: Comprehensive audit trails
-
----
-
-## Performance Considerations
-
-### LLM Performance
-
-- **Model Size**: `smangrul/llama-3-8b-instruct-function-calling` requires significant resources
-- **Response Time**: Typical 1-5 seconds per LLM call
-- **Concurrency**: Single-threaded LLM processing
-- **Caching**: No response caching implemented
-
-### Vector Database Performance
-
-- **Search Speed**: FAISS provides fast similarity search
-- **Memory Usage**: Indexes loaded into memory
-- **Scalability**: Limited by available RAM
-
-### Optimization Opportunities
-
-1. **Response Caching**: Cache LLM responses for common queries
-2. **Batch Processing**: Process multiple requests together
-3. **Model Optimization**: Use smaller models for specific tasks
-4. **Database Optimization**: Implement proper indexing strategies
-
----
-
-## Deployment Architecture
-
-### Current Setup (Development)
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Next.js App   │────│  Ollama Server  │────│ Vector Storage  │
-│  (Port 3000)    │    │  (Port 11434)   │    │ (File System)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+# Application settings
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NODE_ENV=development
 ```
 
-### Production Considerations
+### Local Storage Settings
 
-1. **Load Balancing**: Multiple application instances
-2. **Database Clustering**: Distributed vector storage
-3. **Model Serving**: Dedicated LLM inference servers
-4. **Monitoring**: Comprehensive observability stack
-
----
-
-## Future Enhancements
-
-### Planned Features
-
-1. **Multi-Model Support**: Support for different LLM providers
-2. **Advanced Analytics**: Infrastructure simulation analytics
-3. **Real-time Collaboration**: Multi-user simulation environments
-4. **Advanced Networking**: Complex network topology simulation
-5. **Compliance Frameworks**: Built-in compliance checking
-
-### Architecture Evolution
-
-1. **Microservices**: Break down into smaller services
-2. **Event-Driven**: Implement event-based architecture
-3. **GraphQL**: Advanced query capabilities
-4. **Real-time Updates**: WebSocket-based live updates
-
----
+Client-side configuration stored in browser:
+- API keys (if not set server-side)
+- Model preferences
+- UI settings
+- Chat history
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Ollama Connection**: Ensure Ollama server is running on port 11434
-2. **Model Download**: Verify `smangrul/llama-3-8b-instruct-function-calling` model is available
-3. **Vector Store**: Check vector-store directory permissions
-4. **Memory Issues**: Monitor RAM usage with large vector databases
+**1. "Model not found" errors**
+- Verify API keys are correctly set
+- Check model names in settings
+- Ensure Ollama is running for local models
 
-### Debug Information
+**2. CORS errors with external APIs**
+- Use the proxy endpoints (`/api/lambda-proxy`)
+- Check API key configuration
+- Verify network connectivity
 
-Enable debug logging by setting environment variables:
-```bash
-DEBUG=langchain:* yarn dev
+**3. Vector database issues**
+- Run `npm run reset-vector-db` to reset
+- Check file permissions in `data/vector-store/`
+- Ensure sufficient disk space
+
+**4. Slow AI responses**
+- Check model configuration and temperature settings
+- Monitor API rate limits
+- Consider switching to faster models
+
+### Debug Mode
+
+Enable detailed logging:
+```typescript
+// In settings or environment
+DEBUG_MODE=true
+LOG_LEVEL=verbose
 ```
+
+Access logs through:
+- Browser console for client-side issues
+- Server terminal for API issues
+- Built-in logs console in the UI
+
+## Contributing
+
+### Getting Involved
+
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Make your changes**
+4. **Add tests** (if applicable)
+5. **Commit your changes**
+   ```bash
+   git commit -m 'Add some amazing feature'
+   ```
+6. **Push to the branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+7. **Open a Pull Request**
+
+### Development Guidelines
+
+- **Code Style**: Follow TypeScript best practices
+- **Components**: Use functional components with hooks
+- **State**: Prefer Zustand for global state
+- **Types**: Maintain strict TypeScript typing
+- **Testing**: Add tests for new functionality
+- **Documentation**: Update docs for API changes
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- **LangChain** - AI/LLM integration framework
+- **Next.js** - React framework and development platform
+- **ReactFlow** - Interactive node-based UI library
+- **Lambda Labs** - High-performance AI model hosting
+- **OpenAI** - GPT models and API infrastructure
+- **Ollama** - Local LLM execution platform
 
 ---
 
-## API Reference Summary
-
-| Endpoint | Method | Purpose | Schema |
-|----------|--------|---------|---------|
-| `/api/vector-memory` | GET | Search companies | Query params |
-| `/api/vector-memory` | POST | Add company | CompanyMemoryRecord |
-| `/api/vector-memory` | DELETE | Clear database | None |
-
-## Schema Reference Summary
-
-| Schema | Purpose | Location |
-|--------|---------|----------|
-| `InfrastructureEntitySchema` | Entity validation | langchain-orchestrator.ts |
-| `ToolActionSchema` | Tool commands | schema.ts |
-| `CompanyMemoryRecord` | Vector storage | infrastructure.ts |
-| `OpenApiSpecSchema` | API generation | InfrastructureBuilder.ts |
+<div align="center">
+  <p><strong>Built with ❤️ for the infrastructure community</strong></p>
+  <p>
+    <a href="#quick-start">Get Started</a> •
+    <a href="ARCHITECTURE.md">Architecture</a> •
+    <a href="#api-reference">API Docs</a> •
+    <a href="#contributing">Contributing</a>
+  </p>
+</div>

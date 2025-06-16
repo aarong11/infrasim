@@ -1,0 +1,30 @@
+{
+  "pluginName": "removeInfrastructureFromCompany",
+  "version": "1.0.0",
+  "description": "Remove an infrastructure entity from a company's infrastructure in vector memory",
+  "executionContext": "server",
+  "parameters": {
+    "companyId": {
+      "type": "string",
+      "required": true,
+      "description": "ID of the company to remove infrastructure from"
+    },
+    "entityId": {
+      "type": "string",
+      "required": true,
+      "description": "ID of the infrastructure entity to remove"
+    }
+  },
+  "inlineCode": "async function removeInfrastructureFromCompany(companyId, entityId) {\n  try {\n    const response = await fetch('/api/vector-memory', {\n      method: 'POST',\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        action: 'removeCompanyInfrastructure',\n        companyId: companyId,\n        entityId: entityId\n      })\n    });\n    \n    if (!response.ok) {\n      throw new Error(`HTTP error! status: ${response.status}`);\n    }\n    \n    const result = await response.json();\n    \n    if (!result.success) {\n      throw new Error(result.error || 'Failed to remove infrastructure entity');\n    }\n    \n    return {\n      success: true,\n      entityId: entityId,\n      companyId: companyId,\n      message: `Removed infrastructure entity ${entityId} from company ${companyId}`,\n      timestamp: new Date().toISOString()\n    };\n  } catch (error) {\n    return {\n      success: false,\n      error: error.message,\n      timestamp: new Date().toISOString()\n    };\n  }\n}",
+  "dependencies": [],
+  "timeout": 15000,
+  "retries": 2,
+  "metadata": {
+    "category": "vector-memory",
+    "tags": ["company", "infrastructure", "remove", "delete"],
+    "author": "infrasim-core",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "modifiable": true,
+    "llmEnhanced": false
+  }
+}

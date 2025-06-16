@@ -1,10 +1,155 @@
 import { ChatOllama } from '@langchain/community/chat_models/ollama';
-import { ProcessingMode } from './langchain-orchestrator';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
+import { ChatResult } from '@langchain/core/outputs';
+import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
+import { ProcessingMode, ModelRole } from '../types/models';
+
+// Export the shared types for other modules to use
+export { ProcessingMode, ModelRole };
+
+// Custom ChatOpenAI wrapper for Lambda Labs via proxy that extends BaseChatModel
+class LambdaProxyChatModel extends BaseChatModel {
+  private apiKey: string;
+  private modelName: string;
+  private temperature: number;
+  private maxTokens: number;
+
+  constructor(config: {
+    openAIApiKey: string;
+    modelName: string;
+    temperature?: number;
+    maxTokens?: number;
+  }) {
+    super({});
+    this.apiKey = config.openAIApiKey;
+    this.modelName = config.modelName;
+    this.temperature = config.temperature || 0.1;
+    this.maxTokens = config.maxTokens || 2048;
+  }
+
+  _llmType(): string {
+    return 'lambda-proxy';
+  }
+
+  _combineLLMOutput() {
+    return [];
+  }
+
+  private getProxyUrl(): string {
+    // Check if we're running on the server-side
+    if (typeof window === 'undefined') {
+      // Server-side: use full URL
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      return `${baseUrl}/api/lambda-proxy`;
+    }
+    // Client-side: use relative URL
+    return '/api/lambda-proxy';
+  }
+
+  async _generate(
+    messages: BaseMessage[],
+    options?: any,
+    runManager?: CallbackManagerForLLMRun
+  ): Promise<ChatResult> {
+    try {
+      // Log the Lambda API call attempt
+      console.log('🔄 Lambda Labs API call attempt:', {
+        modelName: this.modelName,
+        hasApiKey: !!this.apiKey,
+        apiKeyLength: this.apiKey?.length || 0,
+        apiKeyPrefix: this.apiKey?.substring(0, 10) + '...' || 'none',
+        messagesCount: messages.length,
+        timestamp: new Date().toISOString()
+      });
+
+      // Convert LangChain messages to OpenAI format
+      const formattedMessages = messages.map(msg => ({
+        role: msg._getType() === 'human' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+
+      const proxyUrl = this.getProxyUrl();
+      console.log(`🔄 Lambda proxy request to: ${proxyUrl}`);
+
+      const requestBody = {
+        apiKey: this.apiKey,
+        model: this.modelName,
+        messages: formattedMessages,
+        temperature: this.temperature,
+        max_tokens: this.maxTokens
+      };
+
+      console.log('📤 Lambda proxy request body (sanitized):', {
+        hasApiKey: !!requestBody.apiKey,
+        apiKeyLength: requestBody.apiKey?.length || 0,
+        model: requestBody.model,
+        messagesCount: requestBody.messages.length,
+        temperature: requestBody.temperature,
+        max_tokens: requestBody.max_tokens
+      });
+
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('📥 Lambda proxy response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('❌ Lambda proxy error response:', error);
+        throw new Error(`Lambda proxy error: ${error.error}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Lambda proxy success:', {
+        hasChoices: !!data.choices,
+        choicesCount: data.choices?.length || 0,
+        contentLength: data.choices?.[0]?.message?.content?.length || 0,
+        usage: data.usage
+      });
+
+      const content = data.choices?.[0]?.message?.content || '';
+      
+      return {
+        generations: [{
+          text: content,
+          message: new AIMessage(content)
+        }],
+        llmOutput: {
+          tokenUsage: data.usage || {}
+        }
+      };
+    } catch (error) {
+      console.error('❌ Lambda proxy generate error:', error);
+      throw error;
+    }
+  }
+
+  async invoke(input: string | BaseMessage[]): Promise<any> {
+    const messages = Array.isArray(input) ? input : [new HumanMessage(input)];
+    const result = await this._generate(messages);
+    return {
+      content: result.generations[0]?.text || ''
+    };
+  }
+}
 
 export interface ModelInstance {
   id: string;
   name: string;
-  llm: ChatOllama;
+  llm: ChatOllama | ChatOpenAI | LambdaProxyChatModel;
   processingMode: ProcessingMode;
   promptFormatter: PromptFormatter;
   responseParser: ResponseParser;
@@ -13,9 +158,10 @@ export interface ModelInstance {
 export interface ModelConfig {
   id: string;
   name: string;
-  type: 'ollama' | 'openai' | 'anthropic';
+  type: 'ollama' | 'openai' | 'anthropic' | 'lambda';
   processingMode: ProcessingMode;
   baseUrl?: string;
+  apiKey?: string;
   temperature?: number;
   description: string;
 }
@@ -33,13 +179,9 @@ export interface ResponseParser {
 // Llama-specific formatting
 class LlamaPromptFormatter implements PromptFormatter {
   formatSystemPrompt(instruction: string, schema?: any, examples?: string): string {
-    const schemaString = schema ? JSON.stringify(schema, null, 2)
-      .replace(/\{/g, '{{')
-      .replace(/\}/g, '}}') : '';
-    
-    const examplesString = examples ? examples
-      .replace(/\{/g, '{{')
-      .replace(/\}/g, '}}') : '';
+    // Don't escape the schema since we're not using it in a template context here
+    const schemaString = schema ? JSON.stringify(schema, null, 2) : '';
+    const examplesString = examples || '';
 
     return `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
@@ -100,6 +242,23 @@ User: ${userMessage}`;
   }
 }
 
+// OpenAI/Lambda Labs formatting for standard chat models
+class OpenAIPromptFormatter implements PromptFormatter {
+  formatSystemPrompt(instruction: string, schema?: any, examples?: string): string {
+    return `${instruction}
+${schema ? `\nSchema: ${JSON.stringify(schema, null, 2)}` : ''}
+${examples ? `\nExamples: ${examples}` : ''}
+
+Input: {input}`;
+  }
+
+  formatChatPrompt(systemMessage: string, userMessage: string): string {
+    // For OpenAI-style models, we'll use the system message directly
+    // The actual formatting will be handled by the LangChain ChatOpenAI class
+    return userMessage;
+  }
+}
+
 // Enhanced JSON parser with retry logic
 class LlamaResponseParser implements ResponseParser {
   parseStructuredResponse(rawResponse: string, schema?: any): any {
@@ -109,7 +268,7 @@ class LlamaResponseParser implements ResponseParser {
   parseChatResponse(rawResponse: string): string {
     return rawResponse
       .replace(/assistant<\|end_header_id\|>\s*\n*/g, '')
-      .replace(/<\|eot_id\|>/g, '')
+      .replace(/<\|eot_id|>/g, '')
       .trim();
   }
 
@@ -161,11 +320,6 @@ class StandardResponseParser implements ResponseParser {
   parseChatResponse(rawResponse: string): string {
     return rawResponse.trim();
   }
-}
-
-export enum ModelRole {
-  CHAT = 'chat',
-  TOOLS = 'tools'
 }
 
 export class DualModelManager {
@@ -243,17 +397,58 @@ export class DualModelManager {
   }
 
   private async createModelInstance(config: ModelConfig, baseUrl: string): Promise<ModelInstance> {
-    const llm = new ChatOllama({
-      baseUrl: config.baseUrl || baseUrl,
-      model: config.id,
-      temperature: config.temperature || 0.1,
+    let llm: ChatOllama | ChatOpenAI | LambdaProxyChatModel;
+
+    // Log the model instance creation for debugging
+    console.log('🏗️ Creating model instance:', {
+      modelId: config.id,
+      modelType: config.type,
+      hasApiKey: !!config.apiKey,
+      apiKeyLength: config.apiKey?.length || 0,
+      temperature: config.temperature
     });
 
-    // Choose formatter and parser based on processing mode first, then model name
+    if (config.type === 'lambda') {
+      // Lambda Labs configuration using proxy to avoid CORS issues
+      llm = new LambdaProxyChatModel({
+        openAIApiKey: config.apiKey || '',
+        modelName: config.id,
+        temperature: config.temperature || 0.1,
+        maxTokens: 2048,
+      });
+      
+      console.log('🔧 Lambda model created with API key:', {
+        hasApiKey: !!(config.apiKey || ''),
+        apiKeyLength: (config.apiKey || '').length
+      });
+    } else if (config.type === 'openai') {
+      // Standard OpenAI configuration
+      llm = new ChatOpenAI({
+        openAIApiKey: config.apiKey,
+        modelName: config.id,
+        temperature: config.temperature || 0.1,
+        configuration: config.baseUrl ? {
+          baseURL: config.baseUrl,
+        } : undefined
+      });
+    } else {
+      // Ollama configuration
+      llm = new ChatOllama({
+        baseUrl: config.baseUrl || baseUrl,
+        model: config.id,
+        temperature: config.temperature || 0.1,
+      });
+    }
+
+    // Choose formatter and parser based on processing mode and model type
     let formatter: PromptFormatter;
     let parser: ResponseParser;
 
-    if (config.processingMode === ProcessingMode.OPENAI_TOOLS) {
+    if (config.type === 'lambda' || config.type === 'openai') {
+      // OpenAI-style models support structured outputs and function calling natively
+      formatter = new OpenAIPromptFormatter();
+      parser = new StandardResponseParser();
+    } else if (config.processingMode === ProcessingMode.OPENAI_TOOLS) {
       // Use standard formatting for OpenAI-style tools (including Groq)
       formatter = new StandardPromptFormatter();
       parser = new StandardResponseParser();

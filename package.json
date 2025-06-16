@@ -1,13 +1,16 @@
 {
   "name": "infrasim",
   "version": "0.1.0",
+  "type": "commonjs",
   "private": true,
   "scripts": {
     "dev": "concurrently \"rm -rf .next\" \"yarn ollama:start\" \"yarn next:dev\"",
-    "next:dev": "wait-on http://localhost:11434 && next dev",
+    "next:dev": "next dev",
     "build": "next build",
+    "build:pages": "next build && next export",
+    "build:worker": "cd worker && tsc && cd ..",
     "start": "concurrently \"yarn ollama:start\" \"yarn next:start\"",
-    "next:start": "wait-on http://localhost:11434 && next start",
+    "next:start": "next start",
     "lint": "next lint",
     "ollama:start": "ollama serve",
     "ollama:pull": "ollama pull llama3.2:latest",
@@ -18,13 +21,19 @@
     "reset-vector-db": "tsx reset-vector-db.ts",
     "reset-vector-db:force": "tsx reset-vector-db.ts --force",
     "reset-vector-db:quiet": "tsx reset-vector-db.ts --quiet",
-    "clean": "rm -rf .next node_modules && echo 'Cleaned build artifacts and node_modules'"
+    "clean": "rm -rf .next node_modules && echo 'Cleaned build artifacts and node_modules'",
+    "deploy:worker": "wrangler deploy",
+    "deploy:pages": "wrangler pages deploy out --project-name infrasim-pages",
+    "deploy:all": "yarn build:pages && yarn deploy:pages && yarn deploy:worker",
+    "dev:worker": "wrangler dev",
+    "dev:cf": "concurrently \"yarn dev:worker\" \"yarn next:dev\""
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@langchain/anthropic": "^0.3.21",
     "@langchain/community": "^0.3.45",
     "@langchain/core": "^0.3.57",
+    "@langchain/openai": "^0.5.12",
     "@types/d3": "^7.4.0",
     "@types/lodash": "^4.14.0",
     "@types/node": "^20.0.0",
@@ -64,10 +73,12 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
     "concurrently": "^9.1.2",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "tsx": "^4.19.4",
-    "wait-on": "^8.0.3"
+    "wait-on": "^8.0.3",
+    "wrangler": "^3.78.0"
   }
 }

@@ -1,0 +1,22 @@
+# Cloudflare Pages configuration for InfraSim frontend
+name = "infrasim-pages"
+compatibility_date = "2024-01-15"
+
+# Pages-specific configuration
+[pages]
+build_output_dir = "out"
+build_command = "npm run build:pages"
+build_cwd = "."
+
+# Environment variables for Pages build
+[env.production.vars]
+NODE_ENV = "production"
+NEXT_PUBLIC_API_URL = "https://your-worker-domain.workers.dev"
+
+[env.preview.vars]
+NODE_ENV = "production"
+NEXT_PUBLIC_API_URL = "https://your-worker-domain.workers.dev"
+
+[env.development.vars]
+NODE_ENV = "development"
+NEXT_PUBLIC_API_URL = "http://localhost:8787"  # Local Wrangler dev server
