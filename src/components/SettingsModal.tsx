@@ -379,7 +379,7 @@ export const SettingsModal: React.FC = () => {
                       type="text"
                       value={settings.ollamaHost}
                       onChange={(e) => handleSettingChange('ollamaHost', e.target.value)}
-                      placeholder="http://localhost:11434"
+                      placeholder="http://ollama:11434"
                       className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
                     />
                     <button

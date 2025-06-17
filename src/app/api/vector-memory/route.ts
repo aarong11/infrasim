@@ -33,7 +33,7 @@ const SERVER_API_KEYS = {
 const defaultSettings: UserSettings = {
   chatModel: 'llama-4-maverick-17b-128e-instruct-fp8',
   toolsModel: 'llama-4-maverick-17b-128e-instruct-fp8',
-  ollamaHost: 'http://localhost:11434',
+  ollamaHost: process.env.OLLAMA_BASE_URL || 'http://localhost:11434', // Use env var first
   openaiApiKey: '',
   anthropicApiKey: '',
   lambdaApiKey: '', // Removed default API key from client settings

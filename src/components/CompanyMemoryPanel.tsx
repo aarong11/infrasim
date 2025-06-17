@@ -29,6 +29,7 @@ export const CompanyMemoryPanel: React.FC<CompanyMemoryPanelProps> = ({
     description: '',
     sectorTags: '',
     services: '',
+    daoContractAddress: '',
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editedDescription, setEditedDescription] = useState('');
@@ -79,10 +80,11 @@ export const CompanyMemoryPanel: React.FC<CompanyMemoryPanelProps> = ({
         description: newCompany.description,
         sectorTags: newCompany.sectorTags.split(',').map(tag => tag.trim()).filter(Boolean),
         services: newCompany.services.split(',').map(service => service.trim()).filter(Boolean),
+        daoContractAddress: newCompany.daoContractAddress || undefined,
         metadata: {}
       });
 
-      setNewCompany({ name: '', description: '', sectorTags: '', services: '' });
+      setNewCompany({ name: '', description: '', sectorTags: '', services: '', daoContractAddress: '' });
       setShowAddForm(false);
       loadAllCompanies();
     } catch (error) {
@@ -159,6 +161,13 @@ export const CompanyMemoryPanel: React.FC<CompanyMemoryPanelProps> = ({
             value={newCompany.services}
             onChange={(e) => setNewCompany({ ...newCompany, services: e.target.value })}
             className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white"
+          />
+          <input
+            type="text"
+            placeholder="DAO Contract Address (optional)"
+            value={newCompany.daoContractAddress || ''}
+            onChange={(e) => setNewCompany({ ...newCompany, daoContractAddress: e.target.value })}
+            className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white font-mono"
           />
           <div className="flex space-x-2">
             <button
@@ -377,6 +386,17 @@ export const CompanyMemoryPanel: React.FC<CompanyMemoryPanelProps> = ({
                 {new Date(company.updatedAt).toLocaleDateString()}
               </p>
             </div>
+
+            {company.daoContractAddress && (
+              <div className="md:col-span-2">
+                <h3 className="text-sm font-medium text-gray-300 mb-2">DAO Contract Address</h3>
+                <div className="bg-gray-700 p-2 rounded-lg">
+                  <code className="text-cyan-400 text-sm font-mono break-all">
+                    {company.daoContractAddress}
+                  </code>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Additional Metadata */}

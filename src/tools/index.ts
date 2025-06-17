@@ -41,7 +41,7 @@ export class StructuredToolOrchestrator {
   private handlers: ToolHandlers;
   private isInitialized = false;
 
-  constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     this.handlers = new ToolHandlers(ollamaBaseUrl);
   }
 
@@ -120,7 +120,7 @@ export class StructuredToolOrchestrator {
     action: ToolAction;
     confidence: number;
   } | {
-    success: false;
+    success: false,
     error: string;
     fallback?: Partial<ToolAction>;
   } {
@@ -329,7 +329,7 @@ class ToolHandlers {
   private orchestrator: LangChainOrchestrator;
   private simulationEngine: SimulationEngine;
 
-  constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     this.orchestrator = new LangChainOrchestrator(ollamaBaseUrl);
     this.simulationEngine = new SimulationEngine();
   }

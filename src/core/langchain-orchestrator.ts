@@ -258,7 +258,7 @@ export class LangChainOrchestrator {
   private descriptionParser: StructuredOutputParser<any>;
   private modelManager: DualModelManager;
 
-  constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(ollamaBaseUrl: string = 'http://ollama:11434') {
     console.log('🚀 LangChain Orchestrator initializing with dual model support...', {
       ollamaBaseUrl,
       timestamp: new Date().toISOString()

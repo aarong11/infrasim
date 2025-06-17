@@ -102,6 +102,7 @@ export interface CompanyMemoryRecord {
   services: string[];
   metadata: Record<string, any>;
   infrastructure?: InfrastructureEntity[]; // Added infrastructure field
+  daoContractAddress?: string; // New DAO contract address field
   createdAt: Date;
   updatedAt: Date;
 }

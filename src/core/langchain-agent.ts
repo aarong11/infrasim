@@ -81,6 +81,8 @@ export class LangChainInfrastructureAgent {
   }
 
   private initializeLLM(config: any) {
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+
     switch (config.provider) {
       case 'openai':
         return new ChatOpenAI({
@@ -99,7 +101,7 @@ export class LangChainInfrastructureAgent {
       case 'ollama':
       default:
         return new ChatOllama({
-          baseUrl: config.ollamaBaseUrl || 'http://localhost:11434',
+          baseUrl: ollamaBaseUrl, // Use environment variable consistently
           model: config.modelName,
           temperature: config.temperature || 0.1,
         });

@@ -10,20 +10,39 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.web
+      target: development  # Add build target
+      args:
+        - BUILDKIT_INLINE_CACHE=1
     container_name: infrasim-web
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - ETHEREUM_RPC_URL=http://ethereum-sim:8545
+      - NODE_ENV=${NODE_ENV:-development}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL:-http://ethereum-sim:8545}
+      - WATCHPACK_POLLING=${WATCHPACK_POLLING:-true}
+      - NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
+      - NEXT_PUBLIC_CUSTOM_RPC_URL=${NEXT_PUBLIC_CUSTOM_RPC_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - LAMBDA_LABS_API_KEY=${LAMBDA_LABS_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
+      - ./src:/app/src  # Mount source code
+      - ./public:/app/public  # Mount public files
+      - ./package.json:/app/package.json  # Mount package.json
+      - ./next.config.js:/app/next.config.js  # Mount Next.js config
+      - ./tailwind.config.js:/app/tailwind.config.js  # Mount Tailwind config
+      - ./tsconfig.json:/app/tsconfig.json  # Mount TypeScript config
+      - ./postcss.config.js:/app/postcss.config.js  # Mount PostCSS config
       - ./data:/app/data
-      - /app/node_modules
-      - /app/.next
+      - /app/node_modules  # Anonymous volume for node_modules
+      - /app/.next  # Anonymous volume for Next.js build cache
     depends_on:
-      - ollama
       - ethereum-sim
+      - ollama
     restart: unless-stopped
     networks:
       - infrasim-network
@@ -33,7 +52,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
+      
   # Ollama AI Service
   ollama:
     image: ollama/ollama:latest
@@ -43,7 +62,7 @@ services:
     volumes:
       - ollama-data:/root/.ollama
     environment:
-      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
     restart: unless-stopped
     networks:
       - infrasim-network
@@ -59,10 +78,12 @@ services:
     image: ollama/ollama:latest
     container_name: infrasim-ollama-init
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     volumes:
       - ./scripts/init-ollama.sh:/init-ollama.sh
-    command: /init-ollama.sh
+    entrypoint: ["/bin/bash"]
+    command: ["/init-ollama.sh"]
     networks:
       - infrasim-network
     restart: "no"
@@ -73,10 +94,12 @@ services:
     container_name: infrasim-ethereum
     ports:
       - "8545:8545"
+      - "8546:8546"  # Deployment API server
     volumes:
-      - ./ethereum/data:/data
+      - ethereum-data:/data
     environment:
       - NODE_ENV=development
+      - PRIVATE_KEY=${ETHEREUM_PRIVATE_KEY}
     restart: unless-stopped
     networks:
       - infrasim-network
@@ -85,8 +108,12 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
 volumes:
   ollama-data:
+    driver: local
+  ethereum-data:
+    driver: local
+  blockscout-db:
     driver: local

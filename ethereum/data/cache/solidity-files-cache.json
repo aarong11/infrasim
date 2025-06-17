@@ -342,6 +342,42 @@
       "artifacts": [
         "USDC"
       ]
+    },
+    "/app/contracts/DAOFactory.sol": {
+      "lastModificationDate": 1750122477571,
+      "contentHash": "9ebdb1690cfb8a26ba3c1e4521d22bf2",
+      "sourceName": "contracts/DAOFactory.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "DAOFactory"
+      ]
     }
   }
 }

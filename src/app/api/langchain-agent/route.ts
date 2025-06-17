@@ -1,53 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LangChainInfrastructureAgent } from '../../../core/langchain-agent';
 
-// Singleton agent instance
-let agent: LangChainInfrastructureAgent | null = null;
-
-async function getAgent(): Promise<LangChainInfrastructureAgent> {
-  if (!agent) {
-    agent = new LangChainInfrastructureAgent({
-      provider: 'ollama',
-      modelName: 'smangrul/llama-3-8b-instruct-function-calling',
-      ollamaBaseUrl: 'http://localhost:11434',
-      temperature: 0.1,
-    });
-    
-    await agent.initialize();
-  }
-  return agent;
-}
+const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 
 export async function POST(request: NextRequest) {
   try {
-    const { input, provider, modelName, apiKey } = await request.json();
+    const { prompt, settings } = await request.json();
     
-    if (!input) {
-      return NextResponse.json(
-        { success: false, error: 'Input is required' },
-        { status: 400 }
-      );
-    }
+    // Create agent with provided or default settings
+    const agent = new LangChainInfrastructureAgent({
+      provider: settings?.provider || 'ollama',
+      modelName: settings?.chatModel || 'llama3.2:latest',
+      ollamaBaseUrl: ollamaBaseUrl,
+      apiKey: settings?.apiKey,
+      temperature: settings?.temperature || 0.1
+    });
 
-    // Create or get agent with specified configuration
-    let agentInstance = agent;
-    
-    // If different provider/model specified, create new instance
-    if (provider || modelName) {
-      agentInstance = new LangChainInfrastructureAgent({
-        provider: provider || 'ollama',
-        modelName: modelName || 'smangrul/llama-3-8b-instruct-function-calling',
-        ollamaBaseUrl: 'http://localhost:11434',
-        apiKey,
-        temperature: 0.1,
-      });
-      
-      await agentInstance.initialize();
-    } else {
-      agentInstance = await getAgent();
-    }
+    // Initialize the agent
+    await agent.initialize();
 
-    const result = await agentInstance.executeCommand(input);
+    const result = await agent.executeCommand(prompt);
 
     return NextResponse.json({
       success: true,
@@ -67,8 +39,15 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const agentInstance = await getAgent();
-    const tools = agentInstance.getAvailableTools();
+    const agent = new LangChainInfrastructureAgent({
+      provider: 'ollama',
+      modelName: 'llama3.2:latest',
+      ollamaBaseUrl: ollamaBaseUrl
+    });
+
+    // Initialize the agent to get tools
+    await agent.initialize();
+    const tools = agent.getAvailableTools();
     
     return NextResponse.json({
       success: true,

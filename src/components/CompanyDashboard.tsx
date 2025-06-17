@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { navigateToIframe, isIframeMode } from '../utils/iframe-navigation';
 import { ClientVectorMemoryService } from '../core/client-vector-memory-service';
 import { CompanyMemoryRecord } from '../types/infrastructure';
+import { DAOSection } from './DAOSection';
 
 interface CompanyDashboardProps {
   companyId: string;
@@ -54,13 +55,14 @@ const dashboardActions: DashboardAction[] = [
 ];
 
 export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ companyId }) => {
-  const router = useRouter();
   const [company, setCompany] = useState<CompanyMemoryRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [inIframe, setInIframe] = useState(false);
   const vectorService = new ClientVectorMemoryService();
 
   useEffect(() => {
+    setInIframe(isIframeMode());
     loadCompany();
   }, [companyId]);
 
@@ -84,11 +86,19 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ companyId })
   };
 
   const handleActionClick = (action: DashboardAction) => {
-    router.push(`/company/${companyId}/${action.route}`);
+    if (isIframeMode()) {
+      navigateToIframe(`/company/${companyId}/${action.route}`);
+    } else {
+      window.location.href = `/company/${companyId}/${action.route}`;
+    }
   };
 
   const handleBackToHome = () => {
-    router.push('/');
+    if (isIframeMode()) {
+      navigateToIframe('/');
+    } else {
+      window.location.href = '/';
+    }
   };
 
   if (loading) {
@@ -122,27 +132,53 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ companyId })
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBackToHome}
-                className="text-gray-400 hover:text-white transition-colors"
-                title="Back to Home"
-              >
-                ← Back
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-white flex items-center">
-                  <span className="text-4xl mr-3">🏢</span>
-                  {company.name}
-                </h1>
-                <p className="text-gray-400 mt-1">{company.description}</p>
+      {/* Only show header if NOT in iframe mode */}
+      {!inIframe && (
+        <div className="bg-gray-800 border-b border-gray-700 p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleBackToHome}
+                  className="text-gray-400 hover:text-white transition-colors"
+                  title="Back to Home"
+                >
+                  ← Back
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-white flex items-center">
+                    <span className="text-4xl mr-3">🏢</span>
+                    {company.name}
+                  </h1>
+                  <p className="text-gray-400 mt-1">{company.description}</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {company.sectorTags.slice(0, 3).map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-full text-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Content - adjust padding based on iframe mode */}
+      <div className={`max-w-6xl mx-auto ${inIframe ? 'p-6' : 'p-6'}`}>
+        {/* Show title in iframe mode since no header */}
+        {inIframe && (
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-white flex items-center mb-2">
+              <span className="text-4xl mr-3">🏢</span>
+              {company.name}
+            </h1>
+            <p className="text-gray-400 mb-4">{company.description}</p>
+            <div className="flex flex-wrap gap-2 mb-6">
               {company.sectorTags.slice(0, 3).map((tag, index) => (
                 <span
                   key={index}
@@ -153,11 +189,8 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ companyId })
               ))}
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Dashboard Actions */}
-      <div className="max-w-6xl mx-auto p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-white mb-2">Company Management</h2>
           <p className="text-gray-400">Choose an action to manage different aspects of {company.name}</p>
@@ -177,6 +210,20 @@ export const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ companyId })
               </div>
             </div>
           ))}
+        </div>
+
+        {/* DAO Section */}
+        <div className="mt-8">
+          <DAOSection
+            companyId={companyId}
+            daoContractAddress={company.daoContractAddress}
+            companyName={company.name}
+            onDAOCreated={(daoId) => {
+              console.log('DAO created with ID:', daoId);
+              // Refresh company data to get updated DAO contract address
+              loadCompany();
+            }}
+          />
         </div>
 
         {/* Quick Stats */}

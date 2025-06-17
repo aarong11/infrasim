@@ -1,13 +1,31 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { navigateToIframe, IframeLink } from '../utils/iframe-navigation';
 import { useAppStore } from '../store/app-store';
-import { Settings, Terminal, Puzzle } from 'lucide-react';
+import { Settings, Terminal, Puzzle, Blocks, Home, Brain, Code } from 'lucide-react';
 import { PluginModal } from './PluginModal';
+import { WebAuthnWalletComponent } from './WebAuthnWalletComponent';
+import { CompanyMemoryPanel } from './CompanyMemoryPanel';
+import { DeveloperConsole } from './DeveloperConsole';
+import { ClientVectorMemoryService } from '../core/client-vector-memory-service';
 
 export default function TopMenuBar() {
-  const { showSettings, showLogs, setShowSettings, setShowLogs, toolCalls } = useAppStore();
+  const { 
+    showSettings, 
+    showLogs, 
+    showMemory, 
+    showDeveloper, 
+    showChat,
+    setShowSettings, 
+    setShowLogs, 
+    setShowMemory, 
+    setShowDeveloper, 
+    setShowChat,
+    toolCalls 
+  } = useAppStore();
+  
   const [showPluginModal, setShowPluginModal] = useState(false);
+  const [vectorService] = useState(() => new ClientVectorMemoryService());
 
   // Convert ToolCall objects to ToolExecutionMetadata format for the plugin modal
   const convertToolCallsToExecutionMetadata = (toolCalls: any[]) => {
@@ -18,62 +36,165 @@ export default function TopMenuBar() {
       result: call.result,
       success: call.status === 'success',
       duration: call.duration || 0,
-      environment: 'server', // Default environment since ToolCall doesn't have this field
-      logs: [], // ToolCall doesn't have logs, so provide empty array
+      environment: 'server',
+      logs: [],
       error: call.error
     }));
   };
 
+  // Listen for window messages to control chat and navigation from iframes
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'TOGGLE_CHAT') {
+        setShowChat(!showChat);
+      } else if (event.data.type === 'SHOW_CHAT') {
+        setShowChat(true);
+      } else if (event.data.type === 'HIDE_CHAT') {
+        setShowChat(false);
+      } else if (event.data.type === 'IFRAME_NAVIGATE') {
+        // Handle navigation requests from iframes
+        const newPath = event.data.path;
+        // Trigger the iframe navigation event
+        const navigationEvent = new CustomEvent('iframe-navigate', {
+          detail: { path: newPath }
+        });
+        window.dispatchEvent(navigationEvent);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [showChat, setShowChat]);
+
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-[9998] bg-white shadow-md border-b border-gray-200">
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* Left side - Logo/Title */}
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold text-gray-800">InfraSim</h1>
-            <span className="text-sm text-gray-500">Infrastructure Simulation Platform</span>
+      <div className="fixed top-0 left-0 right-0 z-[9998] bg-gray-900 border-b border-gray-700 shadow-xl backdrop-blur-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left side - Enhanced Logo/Title */}
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">IS</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">InfraSim</h1>
+                <span className="text-xs text-gray-400">Infrastructure Simulation Platform</span>
+              </div>
+            </div>
           </div>
 
-          {/* Right side - Menu buttons */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowPluginModal(true)}
-              className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                showPluginModal
-                  ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              title="Plugin Manager"
-            >
-              <Puzzle className="w-4 h-4 mr-2" />
-              Plugins
-            </button>
+          {/* Right side - Enhanced Menu buttons */}
+          <div className="flex items-center space-x-3">
+            {/* Navigation Links */}
+            <div className="flex items-center space-x-1">
+              <IframeLink
+                href="/"
+                className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-800/60 active:scale-95"
+                title="Home"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </IframeLink>
 
-            <button
-              onClick={() => setShowLogs(!showLogs)}
-              className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                showLogs
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              title="Toggle LLM Logs Console"
-            >
-              <Terminal className="w-4 h-4 mr-2" />
-              Logs
-            </button>
-            
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                showSettings
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              title="Open Settings"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </button>
+              <button
+                onClick={() => setShowPluginModal(true)}
+                className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95 ${
+                  showPluginModal
+                    ? 'bg-purple-900/40 text-purple-300 border border-purple-700/50'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
+                }`}
+                title="Plugin Manager"
+              >
+                <Puzzle className="w-4 h-4 mr-2" />
+                Plugins
+                {toolCalls.length > 0 && (
+                  <span className="ml-2 bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                    {toolCalls.length}
+                  </span>
+                )}
+              </button>
+
+              <IframeLink
+                href="/explorer"
+                className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-800/60 active:scale-95"
+                title="Block Explorer"
+              >
+                <Blocks className="w-4 h-4 mr-2" />
+                Explorer
+              </IframeLink>
+
+              <IframeLink
+                href="/faucet"
+                className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-gray-300 hover:text-white hover:bg-gray-800/60 active:scale-95"
+                title="Test Token Faucet"
+              >
+                <span className="mr-2">🚰</span>
+                Faucet
+              </IframeLink>
+
+              <button
+                onClick={() => setShowMemory(!showMemory)}
+                className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95 ${
+                  showMemory
+                    ? 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/50'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
+                }`}
+                title="Toggle Memory Panel"
+              >
+                <Brain className="w-4 h-4 mr-2" />
+                Memory
+                {showMemory && (
+                  <div className="ml-2 w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowDeveloper(!showDeveloper)}
+                className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95 ${
+                  showDeveloper
+                    ? 'bg-orange-900/40 text-orange-300 border border-orange-700/50'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
+                }`}
+                title="Toggle Developer Console"
+              >
+                <Code className="w-4 h-4 mr-2" />
+                Developer
+                {showDeveloper && (
+                  <div className="ml-2 w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowLogs(!showLogs)}
+                className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95 ${
+                  showLogs
+                    ? 'bg-blue-900/40 text-blue-300 border border-blue-700/50'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
+                }`}
+                title="Toggle LLM Logs Console"
+              >
+                <Terminal className="w-4 h-4 mr-2" />
+                Logs
+                {showLogs && (
+                  <div className="ml-2 w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                )}
+              </button>
+              
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 active:scale-95 ${
+                  showSettings
+                    ? 'bg-gray-800/60 text-gray-200 border border-gray-600/50'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-800/60'
+                }`}
+                title="Open Settings"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </button>
+            </div>
+
+            {/* Removed wallet section - now in bottom communication bar */}
           </div>
         </div>
       </div>
@@ -84,6 +205,54 @@ export default function TopMenuBar() {
         onClose={() => setShowPluginModal(false)}
         recentExecutions={convertToolCallsToExecutionMetadata(toolCalls)}
       />
+
+      {/* Memory Panel */}
+      {showMemory && (
+        <div className="fixed top-20 right-4 w-[calc(50vw-1rem)] h-[calc(100vh-5rem)] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-[9997] overflow-hidden">
+          <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white flex items-center">
+              <Brain className="w-5 h-5 mr-2 text-cyan-400" />
+              Memory Panel
+            </h3>
+            <button
+              onClick={() => setShowMemory(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+          <div className="h-[calc(100vh-4rem)] overflow-auto">
+            <CompanyMemoryPanel
+              vectorService={vectorService}
+              onCompanySelect={(company) => {
+                console.log('Selected company:', company);
+                // You can add additional logic here for company selection
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Developer Panel */}
+      {showDeveloper && (
+        <div className="fixed top-20 right-4 w-[calc(50vw-1rem)] h-[calc(100vh-5rem)] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-[9997] overflow-hidden">
+          <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white flex items-center">
+              <Code className="w-5 h-5 mr-2 text-orange-400" />
+              Developer Console
+            </h3>
+            <button
+              onClick={() => setShowDeveloper(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+          <div className="h-[calc(100vh-4rem)]">
+            <DeveloperConsole />
+          </div>
+        </div>
+      )}
     </>
   );
 }

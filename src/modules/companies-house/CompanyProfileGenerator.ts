@@ -18,7 +18,7 @@ export class CompanyProfileGenerator {
   private llm: ChatOllama;
   private profileParser: StructuredOutputParser<any>;
 
-  constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     this.llm = new ChatOllama({
       baseUrl: ollamaBaseUrl,
       model: 'nous-hermes2-mixtral:latest',

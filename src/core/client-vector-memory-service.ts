@@ -45,6 +45,7 @@ export class ClientVectorMemoryService {
     sectorTags: string[];
     services: string[];
     metadata: any;
+    daoContractAddress?: string;
   }): Promise<string> {
     const company: Partial<CompanyMemoryRecord> = {
       id: crypto.randomUUID(),
@@ -53,6 +54,7 @@ export class ClientVectorMemoryService {
       sectorTags: companyData.sectorTags,
       services: companyData.services,
       metadata: companyData.metadata,
+      daoContractAddress: companyData.daoContractAddress,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

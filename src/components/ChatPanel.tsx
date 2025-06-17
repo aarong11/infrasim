@@ -258,10 +258,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`${message.type === 'user' ? 'text-right' : 'text-left'}`}
           >
             <div
-              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+              className={`inline-block max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
                 message.type === 'user'
                   ? 'bg-cyan-600 text-white'
                   : message.type === 'system'
@@ -269,15 +269,16 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   : 'bg-gray-800 text-gray-200'
               }`}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              {message.content}
               
-              {/* Context indicator for messages */}
+              {/* Context indicator */}
               {message.context && (
                 <div className="mt-1 text-xs opacity-70">
                   {getContextModeIcon(message.context.mode)} {message.context.mode.replace('_', ' ')}
                 </div>
               )}
               
+              {/* Data details */}
               {message.data && (
                 <details className="mt-2 text-xs">
                   <summary className="cursor-pointer text-gray-400">View data</summary>
@@ -287,7 +288,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 </details>
               )}
               
-              {/* Only render timestamp on client to avoid hydration errors */}
+              {/* Timestamp */}
               {isClient && (
                 <div className="text-xs text-gray-400 mt-1">
                   {message.timestamp.toLocaleTimeString('en-US', { 

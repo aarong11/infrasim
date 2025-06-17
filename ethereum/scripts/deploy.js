@@ -64,11 +64,15 @@ async function main() {
         address: usdcAddress,
         symbol: "USDC",
         decimals: 6,
-        totalSupply: "1000000"
+        totalSupply: "1000000",
+        deployer: deployer.address,
+        deployedAt: new Date().toISOString()
       },
       BridgeVault: {
         address: bridgeVaultAddress,
-        usdcBalance: hre.ethers.formatUnits(vaultBalance, 6)
+        usdcBalance: hre.ethers.formatUnits(vaultBalance, 6),
+        deployer: deployer.address,
+        deployedAt: new Date().toISOString()
       }
     }
   };
@@ -82,10 +86,11 @@ async function main() {
   fs.writeFileSync(deployedPath, JSON.stringify(deploymentData, null, 2));
   console.log("📝 Deployment data saved to:", deployedPath);
   
-  console.log("🎉 Deployment completed successfully!");
+  console.log("🎉 Core contract deployment completed successfully!");
   console.log("Contract addresses:");
   console.log(`  USDC: ${usdcAddress}`);
   console.log(`  BridgeVault: ${bridgeVaultAddress}`);
+  console.log("💡 Run 'npm run deploy:dao' to deploy the DAO Factory next.");
 }
 
 main()

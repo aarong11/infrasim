@@ -141,4 +141,7 @@ setup-ollama.sh
 .env.local
 .env.production
 config.local.js
-secrets.json
+secrets.jsonethereum/.env
+*.key
+.private
+ethereum/.env

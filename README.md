@@ -21,6 +21,60 @@ InfraSim is a comprehensive infrastructure simulation platform that combines mod
 
 ## Quick Start
 
+### 1. Setup Private Key (Required)
+
+First, generate a secure private key for Ethereum deployment:
+
+```bash
+./scripts/setup-private-key.sh
+```
+
+This script will:
+- Generate a cryptographically secure private key
+- Create and configure `.env` files
+- Set proper file permissions
+- Update `.gitignore` to protect sensitive files
+
+### 2. Start the Platform
+
+```bash
+docker-compose up -d
+```
+
+This will start:
+- **Web Interface** (http://localhost:3000) - Main InfraSim application
+- **Ethereum Simulation** (http://localhost:8545) - Local blockchain with deployed contracts
+- **Ollama AI Service** (http://localhost:11434) - Local AI models
+
+### 3. Access the Platform
+
+Open http://localhost:3000 in your browser to start using InfraSim.
+
+## Manual Setup (Alternative)
+
+If you prefer manual setup or need custom configuration:
+
+### Environment Configuration
+
+Copy the environment template:
+```bash
+cp ethereum/.env.example ethereum/.env
+```
+
+Edit `ethereum/.env` and add your private key:
+```bash
+PRIVATE_KEY=your_64_character_hex_private_key_here
+```
+
+### API Keys (Optional)
+
+For enhanced AI capabilities, add API keys to the root `.env` file:
+```bash
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key  
+LAMBDA_LABS_API_KEY=your_lambda_labs_key
+```
+
 ### Prerequisites
 
 - **Node.js 18+** - Runtime environment

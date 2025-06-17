@@ -54,6 +54,9 @@ interface AppState {
   showSettings: boolean;
   showLogs: boolean;
   showToolCallLog: boolean;
+  showMemory: boolean;
+  showDeveloper: boolean;
+  showChat: boolean;
   
   // Context Management
   currentContext: AppContext;
@@ -72,6 +75,9 @@ interface AppState {
   setShowSettings: (show: boolean) => void;
   setShowLogs: (show: boolean) => void;
   setShowToolCallLog: (show: boolean) => void;
+  setShowMemory: (show: boolean) => void;
+  setShowDeveloper: (show: boolean) => void;
+  setShowChat: (show: boolean) => void;
   
   // Actions - Context
   setContext: (context: AppContext) => void;
@@ -101,6 +107,9 @@ export const useAppStore = create<AppState>()(
       showSettings: false,
       showLogs: false,
       showToolCallLog: false,
+      showMemory: false,
+      showDeveloper: false,
+      showChat: false,
       
       // Context Management
       currentContext: {
@@ -123,6 +132,9 @@ export const useAppStore = create<AppState>()(
       setShowSettings: (show: boolean) => set({ showSettings: show }),
       setShowLogs: (show: boolean) => set({ showLogs: show }),
       setShowToolCallLog: (show: boolean) => set({ showToolCallLog: show }),
+      setShowMemory: (show: boolean) => set({ showMemory: show }),
+      setShowDeveloper: (show: boolean) => set({ showDeveloper: show }),
+      setShowChat: (show: boolean) => set({ showChat: show }),
       
       // Actions - Context
       setContext: (context: AppContext) => {

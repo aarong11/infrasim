@@ -21,7 +21,7 @@ interface SettingsStore {
 const defaultSettings: Settings = {
   chatModel: 'llama-4-maverick-17b-128e-instruct-fp8',
   toolsModel: 'llama-4-maverick-17b-128e-instruct-fp8',
-  ollamaHost: 'http://localhost:11434',
+  ollamaHost: process.env.NEXT_PUBLIC_OLLAMA_BASE_URL || 'http://localhost:11434', // Use public env var for frontend
   openaiApiKey: '',
   anthropicApiKey: '',
   lambdaApiKey: '',

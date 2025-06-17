@@ -41,7 +41,7 @@ export class InfrastructureBuilder {
   private topologyParser: StructuredOutputParser<any>;
   private openApiParser: StructuredOutputParser<any>;
 
-  constructor(simulationEngine: SimulationEngine, ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(simulationEngine: SimulationEngine, ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     this.simulationEngine = simulationEngine;
     this.llm = new ChatOllama({
       baseUrl: ollamaBaseUrl,

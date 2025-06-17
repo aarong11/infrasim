@@ -59,6 +59,8 @@ export class EnhancedLangChainAgent {
    * Initialize the appropriate LLM based on provider
    */
   private initializeLLM(config: AgentConfig) {
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+
     switch (config.provider) {
       case 'openai':
         return new ChatOpenAI({
@@ -77,7 +79,7 @@ export class EnhancedLangChainAgent {
       case 'ollama':
       default:
         return new ChatOllama({
-          baseUrl: config.ollamaBaseUrl || 'http://localhost:11434',
+          baseUrl: config.ollamaBaseUrl ||  ollamaBaseUrl,
           model: config.modelName,
           temperature: config.temperature || 0.1,
         });

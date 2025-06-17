@@ -327,7 +327,7 @@ export class DualModelManager {
   private toolsModel: ModelInstance | null = null;
   private defaultOllamaHost: string;
 
-  constructor(ollamaHost: string = 'http://localhost:11434') {
+  constructor(ollamaHost: string = 'http://ollama:11434') {
     this.defaultOllamaHost = ollamaHost;
   }
 

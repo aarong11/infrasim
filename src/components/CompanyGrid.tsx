@@ -143,6 +143,10 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
     router.push(`/company/${company.id}/dashboard`);
   };
 
+  const handleCreateDAO = () => {
+    router.push('/company/create');
+  };
+
   if (loading) {
     return (
       <div className="p-6 bg-gray-900 min-h-screen text-white flex items-center justify-center">
@@ -174,6 +178,21 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
 
   return (
     <div className="p-6 bg-gray-900 min-h-[calc(100vh-4rem)] text-white">
+      {/* Header with Create DAO Button */}
+      <div className="mb-6">
+        <div className="flex items-center space-x-4 mb-2">
+          <h1 className="text-3xl font-bold text-cyan-400">Companies & Organizations</h1>
+          <button
+            onClick={handleCreateDAO}
+            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+          >
+            <span>🏗️</span>
+            <span>Create New DAO</span>
+          </button>
+        </div>
+        <p className="text-gray-400">Explore existing companies or create a new DAO</p>
+      </div>
+
       {/* Filter Input */}
       <div className="mb-6">
         <input

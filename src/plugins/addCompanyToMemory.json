@@ -33,6 +33,11 @@
           "type": "object",
           "required": false,
           "description": "Additional metadata"
+        },
+        "daoContractAddress": {
+          "type": "string",
+          "required": false,
+          "description": "DAO contract address (optional Ethereum address)"
         }
       }
     }

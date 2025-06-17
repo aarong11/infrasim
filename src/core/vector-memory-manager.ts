@@ -14,10 +14,10 @@ export class VectorMemoryManager {
   private storePath: string;
   private isInitialized = false;
 
-  constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     this.embeddings = new OllamaEmbeddings({
       baseUrl: ollamaBaseUrl,
-      model: "llama3.2:latest",
+      model: "nomic-embed-text:latest", // Use proper embedding model
     });
     
     if (typeof window === 'undefined') {
@@ -26,7 +26,7 @@ export class VectorMemoryManager {
     }
   }
 
-  static getInstance(ollamaBaseUrl: string = 'http://localhost:11434'): VectorMemoryManager {
+  static getInstance(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'): VectorMemoryManager {
     if (!instance) {
       instance = new VectorMemoryManager(ollamaBaseUrl);
     }
@@ -231,6 +231,8 @@ export class VectorMemoryManager {
               sectorTags: docData.metadata.sectorTags || [],
               services: docData.metadata.services || [],
               metadata: docData.metadata.metadata || {},
+              infrastructure: docData.metadata.infrastructure,
+              daoContractAddress: docData.metadata.daoContractAddress,
               createdAt: new Date(docData.metadata.createdAt),
               updatedAt: new Date(docData.metadata.updatedAt)
             });
@@ -272,6 +274,8 @@ export class VectorMemoryManager {
       sectorTags: doc.metadata.sectorTags || [],
       services: doc.metadata.services || [],
       metadata: doc.metadata.metadata || {},
+      infrastructure: doc.metadata.infrastructure,
+      daoContractAddress: doc.metadata.daoContractAddress,
       createdAt: new Date(doc.metadata.createdAt),
       updatedAt: new Date(doc.metadata.updatedAt),
     };

@@ -23,7 +23,7 @@ export interface ToolExecutionResult {
 }
 
 export class ToolHandlers {
-  constructor(ollamaBaseUrl: string = 'http://localhost:11434') {
+  constructor(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     // Client-side version - no server imports
   }
 
@@ -44,7 +44,7 @@ export class ToolHandlers {
             chatModel: settings.chatModel || 'llama-4-maverick-17b-128e-instruct-fp8',
             toolsModel: settings.toolsModel || 'llama-4-maverick-17b-128e-instruct-fp8',
             modelMode: settings.modelMode || 'single',
-            ollamaHost: settings.ollamaHost || 'http://localhost:11434',
+            ollamaHost: settings.ollamaHost || process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
             temperature: settings.temperature || 0.1
           };
         }
@@ -59,7 +59,7 @@ export class ToolHandlers {
       chatModel: 'llama-4-maverick-17b-128e-instruct-fp8',
       toolsModel: 'llama-4-maverick-17b-128e-instruct-fp8',
       modelMode: 'single',
-      ollamaHost: 'http://localhost:11434',
+      ollamaHost: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
       temperature: 0.1
     };
   }
