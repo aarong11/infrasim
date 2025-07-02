@@ -25,14 +25,29 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@components/*": ["./src/components/*"]
+      "@components/*": ["./src/components/*"],
+      "@store/*": ["./src/store/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@lib/*": ["./src/types/*"],
+      "@types/*": ["./src/types/*"],
+      "@providers/*": ["./src/providers/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@contexts/*": ["./src/contexts/*"],
+      "@config/*": ["./src/config/*"],
+      "@core/*": ["./src/core/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@plugins/*": ["./src/plugins/*"],
+      "@tools/*": ["./src/tools/*"],
+      "@examples/*": ["./src/examples/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "shared/**/*.ts"
   ],
   "exclude": [
     "node_modules",

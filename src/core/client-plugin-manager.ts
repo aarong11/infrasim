@@ -1,17 +1,25 @@
 // Client-safe plugin manager that makes API calls
 import { 
   PluginDefinition, 
-  PluginExecutionContext, 
-  ExecutionEnvironment,
-  PluginExecutionStatus 
+  PluginExecutionContext 
 } from '../types/plugins';
+import { APIThrottler } from '../utils/api-throttler';
 
 export class ClientPluginManager {
   private apiUrl = '/api/plugins';
+  private throttler = new APIThrottler({
+    minInterval: 1000,
+    maxBackoff: 30000,
+    maxRetries: 3,
+    baseBackoff: 2000
+  });
 
   async getAvailablePlugins(): Promise<PluginDefinition[]> {
     try {
-      const response = await fetch(`${this.apiUrl}/list`);
+      const response = await this.throttler.throttledCall(
+        () => fetch(`${this.apiUrl}/list`),
+        'plugins-list'
+      );
       if (!response.ok) throw new Error('Failed to fetch plugins');
       const data = await response.json();
       return data.plugins || [];
@@ -23,7 +31,10 @@ export class ClientPluginManager {
 
   async getActiveExecutions(): Promise<PluginExecutionContext[]> {
     try {
-      const response = await fetch(`${this.apiUrl}/executions/active`);
+      const response = await this.throttler.throttledCall(
+        () => fetch(`${this.apiUrl}/executions/active`),
+        'plugins-active-executions'
+      );
       if (!response.ok) throw new Error('Failed to fetch active executions');
       const data = await response.json();
       return data.executions || [];
@@ -35,7 +46,10 @@ export class ClientPluginManager {
 
   async getExecutionHistory(limit: number = 50): Promise<PluginExecutionContext[]> {
     try {
-      const response = await fetch(`${this.apiUrl}/executions/history?limit=${limit}`);
+      const response = await this.throttler.throttledCall(
+        () => fetch(`${this.apiUrl}/executions/history?limit=${limit}`),
+        'plugins-execution-history'
+      );
       if (!response.ok) throw new Error('Failed to fetch execution history');
       const data = await response.json();
       return data.executions || [];
@@ -46,40 +60,59 @@ export class ClientPluginManager {
   }
 
   async executePlugin(request: { pluginName: string; parameters: Record<string, any> }): Promise<void> {
-    const response = await fetch(`${this.apiUrl}/execute`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request)
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to execute plugin');
+    try {
+      const response = await this.throttler.throttledCall(
+        () => fetch(`${this.apiUrl}/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request),
+        }),
+        `plugin-execute-${request.pluginName}`
+      );
+      if (!response.ok) throw new Error('Failed to execute plugin');
+    } catch (error) {
+      console.error('Error executing plugin:', error);
+      throw error;
     }
   }
 
   async registerPlugin(plugin: PluginDefinition): Promise<void> {
-    const response = await fetch(`${this.apiUrl}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(plugin)
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to register plugin');
+    try {
+      const response = await this.throttler.throttledCall(
+        () => fetch(`${this.apiUrl}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(plugin),
+        }),
+        'plugin-register'
+      );
+      if (!response.ok) throw new Error('Failed to register plugin');
+    } catch (error) {
+      console.error('Error registering plugin:', error);
+      throw error;
     }
   }
 
   async cancelExecution(requestId: string): Promise<void> {
-    const response = await fetch(`${this.apiUrl}/executions/${requestId}/cancel`, {
-      method: 'POST'
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to cancel execution');
+    try {
+      const response = await this.throttler.throttledCall(
+        () => fetch(`${this.apiUrl}/executions/${requestId}/cancel`, {
+          method: 'POST',
+        }),
+        `plugin-cancel-${requestId}`
+      );
+      if (!response.ok) throw new Error('Failed to cancel execution');
+    } catch (error) {
+      console.error('Error cancelling execution:', error);
+      throw error;
     }
+  }
+
+  /**
+   * Reset throttling state for manual refresh
+   */
+  resetThrottling(): void {
+    this.throttler.resetAll();
   }
 }
 

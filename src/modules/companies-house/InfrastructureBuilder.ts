@@ -5,8 +5,8 @@ import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { CompanyProfile, SimulatedComponent, InfrastructureTopology } from './types';
-import { EntityType, InfrastructureEntity } from '../../types/infrastructure';
-import { SimulationEngine } from '../../core/simulation-engine';
+import { EntityType, InfrastructureEntity } from '@lib/infrastructure';
+import { SimulationEngine } from '@core/simulation-engine';
 
 // Zod schemas for infrastructure generation
 const InfrastructureComponentSchema = z.object({

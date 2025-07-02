@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Wallet, Copy, Eye, EyeOff, Download, Upload, RefreshCw } from 'lucide-react';
-import { useSelfHostedWallet } from './SelfHostedWalletProvider';
+import { useSelfHostedWallet } from '../providers/UnifiedWalletProvider';
 
 export const SelfHostedWallet: React.FC = () => {
   const { 

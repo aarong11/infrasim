@@ -1,21 +1,53 @@
 'use client';
 import { CompanyMemoryRecord, VectorSearchResult, InfrastructureEntity } from '../types/infrastructure';
+import { APIThrottler, throttledFetch } from '../utils/api-throttler';
 
 export class ClientVectorMemoryService {
   private apiUrl = '/api/vector-memory';
+  private throttler = new APIThrottler({
+    minInterval: 1000,
+    maxBackoff: 30000,
+    maxRetries: 3,
+    baseBackoff: 2000
+  });
+
+  // Cache for pending requests to avoid duplicate calls
+  private pendingRequests = new Map<string, Promise<any>>();
 
   private async makeRequest(action: string, params: any = {}) {
+    const requestKey = `${action}-${JSON.stringify(params)}`;
+    
+    // If the same request is already pending, return the existing promise
+    if (this.pendingRequests.has(requestKey)) {
+      return this.pendingRequests.get(requestKey);
+    }
+
+    const requestPromise = this._executeRequest(action, params);
+    this.pendingRequests.set(requestKey, requestPromise);
+
     try {
-      const response = await fetch(this.apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          ...params,
-        }),
-      });
+      const result = await requestPromise;
+      return result;
+    } finally {
+      // Clean up the pending request
+      this.pendingRequests.delete(requestKey);
+    }
+  }
+
+  private async _executeRequest(action: string, params: any = {}) {
+    try {
+      const response = await this.throttler.throttledCall(async () => {
+        return fetch(this.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action,
+            ...params,
+          }),
+        });
+      }, `vector-memory-${action}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

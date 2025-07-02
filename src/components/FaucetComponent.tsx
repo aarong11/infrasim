@@ -1,7 +1,9 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useWebAuthnWallet } from './WebAuthnWalletProvider';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useWebAuthnWallet } from '../providers/UnifiedWalletProvider';
 import { WebAuthnWalletComponent } from './WebAuthnWalletComponent';
+import { APIThrottler } from '../utils/api-throttler';
 
 interface FaucetStatus {
   ethBalance?: string;
@@ -39,6 +41,14 @@ export function FaucetComponent() {
   const [claimingToken, setClaimingToken] = useState<string | null>(null);
   const [result, setResult] = useState<ClaimResult | null>(null);
 
+  // API throttling
+  const apiThrottler = useRef(new APIThrottler({
+    minInterval: 1000,
+    maxBackoff: 30000,
+    maxRetries: 3,
+    baseBackoff: 2000
+  }));
+
   // Check faucet status when wallet is available
   useEffect(() => {
     if (wallet?.address && isAuthenticated) {
@@ -51,7 +61,10 @@ export function FaucetComponent() {
     
     try {
       setLoading(true);
-      const response = await fetch(`/api/faucet?address=${wallet.address}`);
+      const response = await apiThrottler.current.throttledCall(
+        () => fetch(`/api/faucet?address=${wallet.address}`),
+        'faucet-status'
+      );
       const data = await response.json();
       if (data.success) {
         setStatus(data);
@@ -70,16 +83,19 @@ export function FaucetComponent() {
       setClaimingToken(token);
       setResult(null);
       
-      const response = await fetch('/api/faucet', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          address: wallet.address,
-          token
+      const response = await apiThrottler.current.throttledCall(
+        () => fetch('/api/faucet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            address: wallet.address,
+            token
+          }),
         }),
-      });
+        `faucet-claim-${token}`
+      );
       
       const data: ClaimResult = await response.json();
       setResult(data);
@@ -107,6 +123,11 @@ export function FaucetComponent() {
     if (hours <= 0) return 'Available now';
     if (hours < 1) return 'Less than 1 hour';
     return `${hours} hour${hours !== 1 ? 's' : ''}`;
+  };
+
+  const handleRefreshStatus = () => {
+    apiThrottler.current.reset('faucet-status'); // Reset backoff for manual refresh
+    checkFaucetStatus();
   };
 
   // Show WebAuthn not supported message
@@ -303,7 +324,7 @@ export function FaucetComponent() {
       {/* Refresh Button */}
       <div className="text-center mt-6">
         <button
-          onClick={checkFaucetStatus}
+          onClick={handleRefreshStatus}
           disabled={loading}
           className="px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 rounded-lg text-sm transition-colors"
         >
@@ -320,6 +341,7 @@ export function FaucetComponent() {
           <li>• USDC can be used for DAO operations and testing</li>
           <li>• Tokens are only for testing purposes</li>
           <li>• Seamlessly integrated with your secure WebAuthn wallet</li>
+          <li>• API calls throttled with exponential backoff for reliability</li>
         </ul>
       </div>
     </div>

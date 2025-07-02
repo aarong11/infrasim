@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ProcessingMode, ModelRole } from '../types/models';
-import { useAppStore } from '../store/app-store';
-import { useSettingsStore } from '../store/settings-store';
+import React, { useState, useRef } from 'react';
+import { ProcessingMode, ModelRole } from '@lib/models';
+import { useAppStore } from '@store/app-store';
+import { useSettingsStore } from '@store/settings-store';
+import { APIThrottler } from '@utils/api-throttler';
 
 interface ModelConfig {
   id: string;
@@ -150,11 +151,16 @@ interface Settings extends DualModelConfig {
 }
 
 export const SettingsModal: React.FC = () => {
-  const { showSettings, setShowSettings } = useAppStore();
+  const { showSettings, setShowSettings, walletTimeout, setWalletTimeout } = useAppStore();
   const { settings, updateSettings } = useSettingsStore();
 
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+
+  const apiThrottler = useRef(new APIThrottler());
 
   const chatModelConfig = AVAILABLE_MODELS.find(m => m.id === settings.chatModel);
   const toolsModelConfig = AVAILABLE_MODELS.find(m => m.id === settings.toolsModel);
@@ -187,6 +193,34 @@ export const SettingsModal: React.FC = () => {
       }
     } catch (error) {
       alert('❌ Failed to connect to Ollama. Make sure it\'s running and accessible.');
+    }
+  };
+
+  // Fetch Ollama models with throttling
+  const fetchOllamaModels = async () => {
+    if (!settings.ollamaHost) return;
+
+    setLoadingModels(true);
+    setOllamaError(null);
+
+    try {
+      const response = await apiThrottler.current.throttledCall(
+        () => fetch(`${settings.ollamaHost}/api/tags`),
+        'ollama-models'
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const modelNames = data.models?.map((model: any) => model.name) || [];
+        setAvailableModels(modelNames);
+      } else {
+        throw new Error(`Failed to fetch models: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error fetching Ollama models:', error);
+      setOllamaError(error instanceof Error ? error.message : 'Failed to connect to Ollama');
+    } finally {
+      setLoadingModels(false);
     }
   };
 
@@ -478,6 +512,24 @@ export const SettingsModal: React.FC = () => {
                   className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
                 />
               </div>
+            </div>
+            
+            {/* Wallet Timeout Setting */}
+            <div className="mt-4">
+              <label className="block text-gray-400 text-sm mb-2">Wallet Session Timeout:</label>
+              <select
+                value={walletTimeout}
+                onChange={(e) => setWalletTimeout(parseInt(e.target.value))}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:border-cyan-400 focus:outline-none"
+              >
+                <option value={0}>No Timeout</option>
+                <option value={5}>5 Minutes</option>
+                <option value={10}>10 Minutes</option>
+                <option value={60}>1 Hour</option>
+              </select>
+              <p className="text-gray-400 text-xs mt-1">
+                How long the wallet stays unlocked in memory. Choose "No Timeout" to keep it unlocked until manually locked.
+              </p>
             </div>
           </div>
         </div>

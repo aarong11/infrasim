@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useCallback } from 'react';
-import { useAppStore, AppContext } from '../store/app-store';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { InfrastructureEntity } from '@lib/infrastructure';
+import { useAppStore, AppContext } from '@store/app-store';
 
 export interface ContextManagerOptions {
   autoDetectContext?: boolean;

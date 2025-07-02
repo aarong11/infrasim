@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useWebAuthnWallet } from './WebAuthnWalletProvider'
+import { useWebAuthnWallet } from '../providers/UnifiedWalletProvider'
 import { TransactionForm } from './TransactionForm'
 
 // Example component showing blockchain interactions with WebAuthn secure wallet

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAppStore } from '../store/app-store';
+import { useAppStore } from '@store/app-store';
 
 interface ViewPortalProps {
   initialPath?: string;
@@ -11,7 +11,7 @@ export const ViewPortal: React.FC<ViewPortalProps> = ({ initialPath = '/' }) => 
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [isInitialized, setIsInitialized] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
-  const { showChat } = useAppStore();
+  const { showChat, showWallet } = useAppStore();
 
   useEffect(() => {
     // Get the base URL for absolute iframe URLs
@@ -92,19 +92,21 @@ export const ViewPortal: React.FC<ViewPortalProps> = ({ initialPath = '/' }) => 
 
   const iframeUrl = getIframeUrl(currentPath);
 
-  // Calculate dynamic styles based on chat state
+  // Calculate dynamic styles based on chat and wallet state
   const getPortalStyles = () => {
-    if (showChat) {
-      // When chat is open, shift content to the right and reduce width
-      return {
-        marginLeft: '500px', // Width of chat panel
-        width: 'calc(100% - 500px)'
-      };
+    let marginLeft = '0';
+    let width = '100%';
+    
+    // Since only one can be open at a time, we just need to check if either is open
+    if (showChat || showWallet) {
+      // Either chat or wallet is open - shift right by 500px since both are on the left
+      marginLeft = '500px';
+      width = 'calc(100% - 500px)';
     }
     
     return {
-      marginLeft: '0',
-      width: '100%'
+      marginLeft,
+      width
     };
   };
 
@@ -118,6 +120,22 @@ export const ViewPortal: React.FC<ViewPortalProps> = ({ initialPath = '/' }) => 
         src={iframeUrl}
         className="w-full h-full border-0"
         title="View Portal Content"
+        name="viewportal-iframe"
+        id="viewportal-iframe"
+        allowFullScreen
+        allow="accelerometer; autoplay; camera; clipboard-read; clipboard-write; encrypted-media; fullscreen; geolocation; gyroscope; magnetometer; microphone; midi; payment; picture-in-picture; publickey-credentials-get; screen-wake-lock; web-share"
+        referrerPolicy="strict-origin-when-cross-origin"
+        loading="lazy"
+        frameBorder="0"
+        marginHeight={0}
+        marginWidth={0}
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation-by-user-activation allow-downloads allow-modals allow-pointer-lock allow-orientation-lock allow-storage-access-by-user-activation"
+        style={{
+          overflow: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          pointerEvents: 'auto',
+          scrollbarWidth: 'auto'
+        }}
         onLoad={(e) => {
           const iframe = e.target as HTMLIFrameElement;
           

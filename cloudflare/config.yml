@@ -1,0 +1,11 @@
+tunnel: infrasim-tunnel
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: infrasim.org
+    service: http://web:3000
+  - service: http_status:404
+  - hostname: web.infrasim.org
+    service: http://web:3000
+  - hostname: www.infrasim.org
+    service: http://web:3000

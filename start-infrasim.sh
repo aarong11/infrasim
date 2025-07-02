@@ -46,11 +46,13 @@ start_services() {
     # Wait for services to be healthy
     echo "Checking service health..."
     
-    # Check Ethereum
-    echo -n "Ethereum simulation: "
-    timeout=60
+    # Check Hardhat Polygon node
+    echo -n "Hardhat Polygon testnet: "
+    timeout=120
     while [ $timeout -gt 0 ]; do
-        if curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://localhost:8545 >/dev/null 2>&1; then
+        if curl -s -X POST -H "Content-Type: application/json" \
+           --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+           http://localhost:8545 >/dev/null 2>&1; then
             echo -e "${GREEN}✅ Ready${NC}"
             break
         fi
@@ -86,14 +88,26 @@ start_services() {
     echo -e "${GREEN}🎉 InfraSim is ready!${NC}"
     echo ""
     echo "📱 Services available at:"
-    echo "  • Web App:     http://localhost:3000"
-    echo "  • Ollama API:  http://localhost:11434"
-    echo "  • Ethereum:    http://localhost:8545"
+    echo "  • Web App:           http://localhost:3000"
+    echo "  • Hardhat RPC:       http://localhost:8545"
+    echo "  • Deployment API:    http://localhost:8546"
+    echo "  • Ollama API:        http://localhost:11434"
+    echo "  • Matrix:            http://localhost:8008"
+    echo ""
+    echo "🔗 Blockchain Configuration:"
+    echo "  • Network:           Polygon Mumbai Testnet (Local)"
+    echo "  • Chain ID:          80001 (configurable)"
+    echo "  • Block Time:        2 seconds (configurable)"
+    echo "  • Pre-funded:        20 accounts with 10,000 ETH each"
+    echo "  • DAO Factory:       Ready for deployment"
+    echo ""
+    echo "🎯 First-time setup:"
+    echo "  Visit http://localhost:3000 to configure your network and admin wallet"
     echo ""
     echo "📋 Quick commands:"
-    echo "  • View logs:   ./start-infrasim.sh logs"
-    echo "  • Check status: ./start-infrasim.sh status"
-    echo "  • Stop all:    ./start-infrasim.sh stop"
+    echo "  • View logs:         ./start-infrasim.sh logs"
+    echo "  • Check status:      ./start-infrasim.sh status"
+    echo "  • Stop all:          ./start-infrasim.sh stop"
 }
 
 # Function to stop services
@@ -115,6 +129,35 @@ show_status() {
     echo -e "${BLUE}📊 InfraSim Services Status${NC}"
     echo "============================="
     docker-compose ps
+    
+    echo ""
+    echo -e "${BLUE}🔗 Blockchain Status${NC}"
+    echo "===================="
+    
+    # Check Hardhat status
+    if curl -s -X POST -H "Content-Type: application/json" \
+       --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+       http://localhost:8545 >/dev/null 2>&1; then
+        BLOCK_NUMBER=$(curl -s -X POST -H "Content-Type: application/json" \
+                      --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+                      http://localhost:8545 | grep -o '"result":"[^"]*"' | cut -d'"' -f4)
+        echo "• Hardhat Block Number: $((16#${BLOCK_NUMBER#0x}))"
+        
+        # Check network configuration
+        CHAIN_ID=$(curl -s -X POST -H "Content-Type: application/json" \
+                  --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+                  http://localhost:8545 | grep -o '"result":"[^"]*"' | cut -d'"' -f4)
+        echo "• Chain ID: $((16#${CHAIN_ID#0x}))"
+    else
+        echo "• Hardhat: Not responding"
+    fi
+    
+    # Check deployment API
+    if curl -s http://localhost:8546/health >/dev/null 2>&1; then
+        echo "• Deployment API: Ready"
+    else
+        echo "• Deployment API: Not responding"
+    fi
 }
 
 # Function to show logs

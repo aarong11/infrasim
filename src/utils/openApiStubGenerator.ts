@@ -1,4 +1,4 @@
-import { InfrastructureEntity, EntityType, EndpointSpec } from '../types/infrastructure';
+import { InfrastructureEntity, EntityType, EndpointSpec } from '@lib/infrastructure';
 
 interface OpenAPIStubInput {
   id: string;

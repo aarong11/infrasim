@@ -21,7 +21,6 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL:-http://ethereum-sim:8545}
       - WATCHPACK_POLLING=${WATCHPACK_POLLING:-true}
       - NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
       - NEXT_PUBLIC_CUSTOM_RPC_URL=${NEXT_PUBLIC_CUSTOM_RPC_URL}
@@ -29,6 +28,8 @@ services:
       - LAMBDA_LABS_API_KEY=${LAMBDA_LABS_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
     volumes:
       - ./src:/app/src
       - ./public:/app/public
@@ -55,8 +56,6 @@ services:
         - action: rebuild
           path: ./Dockerfile.web
     depends_on:
-      ethereum-sim:
-        condition: service_healthy
       ollama:
         condition: service_healthy
     restart: unless-stopped
@@ -72,7 +71,8 @@ services:
     volumes:
       - ollama-data:/root/.ollama
     environment:
-      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
     restart: unless-stopped
     networks:
       - infrasim-network
@@ -96,26 +96,6 @@ services:
     networks:
       - infrasim-network
     restart: "no"
-
-  # Ethereum Simulation Environment
-  ethereum-sim:
-    build: ./ethereum
-    container_name: infrasim-ethereum
-    ports:
-      - "8545:8545"
-    volumes:
-      - ./ethereum/data:/data
-    environment:
-      - NODE_ENV=development
-    restart: unless-stopped
-    networks:
-      - infrasim-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8545"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
 volumes:
   ollama-data:

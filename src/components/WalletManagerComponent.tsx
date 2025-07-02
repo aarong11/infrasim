@@ -2,19 +2,17 @@
 
 import React, { useState } from 'react';
 import { Plus, Wallet, Coins, Trash2, Copy, Eye, EyeOff, Check, X } from 'lucide-react';
-import { useWebAuthnWallet } from './WebAuthnWalletProvider';
+import { useUnifiedWallet } from '../providers/UnifiedWalletProvider';
 
 export const WalletManagerComponent: React.FC = () => {
   const { 
-    wallet,
-    isAuthenticated,
-    createNewAddress,
-    switchToAddress,
-    addCustomToken,
-    removeCustomToken,
-    updateTokenBalances
-  } = useWebAuthnWallet();
+    webauthnWallets,
+    isWebAuthnAuthenticated,
+    connection
+  } = useUnifiedWallet();
 
+  const wallet = webauthnWallets[0]; // Get primary WebAuthn wallet
+  
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [showNewTokenForm, setShowNewTokenForm] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState('');
@@ -35,7 +33,8 @@ export const WalletManagerComponent: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      await createNewAddress(newAddressLabel);
+      // Placeholder - not implemented in unified wallet yet
+      setError('Address creation not yet implemented in unified wallet system');
       setNewAddressLabel('');
       setShowNewAddressForm(false);
     } catch (err: any) {
@@ -51,10 +50,10 @@ export const WalletManagerComponent: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      await addCustomToken(newToken);
+      // Placeholder - not implemented in unified wallet yet
+      setError('Custom token management not yet implemented in unified wallet system');
       setNewToken({ address: '', symbol: '', name: '', decimals: 18, enabled: true });
       setShowNewTokenForm(false);
-      await updateTokenBalances();
     } catch (err: any) {
       setError(err.message || 'Failed to add token');
     } finally {
@@ -65,7 +64,8 @@ export const WalletManagerComponent: React.FC = () => {
   const handleSwitchAddress = async (addressId: string) => {
     try {
       setLoading(true);
-      await switchToAddress(addressId);
+      // Placeholder - not implemented in unified wallet yet
+      setError('Address switching not yet implemented in unified wallet system');
     } catch (err: any) {
       setError(err.message || 'Failed to switch address');
     } finally {
@@ -84,7 +84,7 @@ export const WalletManagerComponent: React.FC = () => {
     }));
   };
 
-  if (!isAuthenticated || !wallet) {
+  if (!isWebAuthnAuthenticated || !wallet) {
     return (
       <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
         <div className="text-center text-gray-400">
@@ -105,7 +105,9 @@ export const WalletManagerComponent: React.FC = () => {
           </h3>
           <button
             onClick={() => setShowNewAddressForm(true)}
-            className="flex items-center gap-2 px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm transition-colors"
+            disabled={true}
+            className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-gray-400 rounded-lg text-sm cursor-not-allowed"
+            title="Feature coming soon"
           >
             <Plus className="w-4 h-4" />
             New Address
@@ -134,8 +136,8 @@ export const WalletManagerComponent: React.FC = () => {
             </div>
           </div>
 
-          {/* Additional Addresses */}
-          {wallet.addresses?.map((addr) => (
+          {/* Additional Addresses - Show placeholder for now */}
+          {wallet.type === 'webauthn' && (wallet as any).addresses?.map((addr: any) => (
             <div key={addr.id} className="p-3 bg-gray-700 border border-gray-600 rounded-lg">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -180,8 +182,9 @@ export const WalletManagerComponent: React.FC = () => {
                 <div className="flex gap-2 ml-4">
                   <button
                     onClick={() => handleSwitchAddress(addr.id)}
-                    disabled={loading}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-sm rounded transition-colors"
+                    disabled={true}
+                    className="px-3 py-1 bg-gray-600 text-gray-400 text-sm rounded cursor-not-allowed"
+                    title="Feature coming soon"
                   >
                     Switch
                   </button>
@@ -202,38 +205,19 @@ export const WalletManagerComponent: React.FC = () => {
         {showNewAddressForm && (
           <div className="mt-4 p-4 bg-gray-700 border border-gray-600 rounded-lg">
             <h4 className="text-white font-medium mb-3">Create New Address</h4>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Address Label</label>
-                <input
-                  type="text"
-                  value={newAddressLabel}
-                  onChange={(e) => setNewAddressLabel(e.target.value)}
-                  placeholder="e.g., Trading Account, DAO Operations"
-                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-400 focus:outline-none"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCreateAddress}
-                  disabled={loading || !newAddressLabel.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded transition-colors"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                  Create
-                </button>
-                <button
-                  onClick={() => setShowNewAddressForm(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
+            <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+              <p className="text-yellow-300 text-sm">
+                Multi-address support is coming soon in the unified wallet system.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setShowNewAddressForm(false)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Close
+              </button>
             </div>
           </div>
         )}
@@ -248,7 +232,9 @@ export const WalletManagerComponent: React.FC = () => {
           </h3>
           <button
             onClick={() => setShowNewTokenForm(true)}
-            className="flex items-center gap-2 px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm transition-colors"
+            disabled={true}
+            className="flex items-center gap-2 px-3 py-1 bg-gray-600 text-gray-400 rounded-lg text-sm cursor-not-allowed"
+            title="Feature coming soon"
           >
             <Plus className="w-4 h-4" />
             Add Token
@@ -262,7 +248,8 @@ export const WalletManagerComponent: React.FC = () => {
               <div>
                 <div className="text-blue-400 font-medium">USDC (Default)</div>
                 <div className="text-sm text-gray-400">
-                  Balance: {wallet.usdcBalance ? parseFloat(wallet.usdcBalance).toFixed(2) : '0.00'} USDC
+                  Balance: {wallet.type === 'webauthn' && (wallet as any).usdcBalance ? 
+                    parseFloat((wallet as any).usdcBalance).toFixed(2) : '0.00'} USDC
                 </div>
               </div>
               <span className="px-2 py-1 bg-blue-800 text-blue-200 text-xs rounded">Built-in</span>
@@ -270,7 +257,7 @@ export const WalletManagerComponent: React.FC = () => {
           </div>
 
           {/* Custom Tokens */}
-          {wallet.customTokens?.map((token) => (
+          {wallet.type === 'webauthn' && (wallet as any).customTokens?.map((token: any) => (
             <div key={token.id} className="p-3 bg-gray-700 border border-gray-600 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -281,9 +268,9 @@ export const WalletManagerComponent: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => removeCustomToken(token.id)}
-                  className="text-red-400 hover:text-red-300 transition-colors"
-                  title="Remove token"
+                  disabled={true}
+                  className="text-gray-600 cursor-not-allowed"
+                  title="Feature coming soon"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -296,69 +283,19 @@ export const WalletManagerComponent: React.FC = () => {
         {showNewTokenForm && (
           <div className="mt-4 p-4 bg-gray-700 border border-gray-600 rounded-lg">
             <h4 className="text-white font-medium mb-3">Add Custom Token</h4>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Token Contract Address</label>
-                <input
-                  type="text"
-                  value={newToken.address}
-                  onChange={(e) => setNewToken({ ...newToken, address: e.target.value })}
-                  placeholder="0x..."
-                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-400 focus:outline-none font-mono"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Symbol</label>
-                  <input
-                    type="text"
-                    value={newToken.symbol}
-                    onChange={(e) => setNewToken({ ...newToken, symbol: e.target.value })}
-                    placeholder="e.g., USDT"
-                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Decimals</label>
-                  <input
-                    type="number"
-                    value={newToken.decimals}
-                    onChange={(e) => setNewToken({ ...newToken, decimals: parseInt(e.target.value) || 18 })}
-                    className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-400 focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={newToken.name}
-                  onChange={(e) => setNewToken({ ...newToken, name: e.target.value })}
-                  placeholder="e.g., Tether USD"
-                  className="w-full p-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-400 focus:outline-none"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddToken}
-                  disabled={loading || !newToken.address || !newToken.symbol || !newToken.name}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded transition-colors"
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                  Add Token
-                </button>
-                <button
-                  onClick={() => setShowNewTokenForm(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
+            <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+              <p className="text-yellow-300 text-sm">
+                Custom token management is coming soon in the unified wallet system.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setShowNewTokenForm(false)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Close
+              </button>
             </div>
           </div>
         )}

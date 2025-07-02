@@ -273,7 +273,7 @@ const ChatUI: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-16 left-0 w-[500px] h-[calc(100vh-8rem)] z-[9996] bg-gray-900 border-r border-gray-700 flex flex-col">
+    <div className="fixed bottom-16 left-0 w-[500px] h-[calc(100vh-9rem)] z-[9996] bg-gray-900 border-r border-gray-700 flex flex-col">
       {/* Chat Header */}
       <div className="bg-gray-800 border-b border-gray-700 p-4">
         <div className="flex items-center justify-between mb-2">

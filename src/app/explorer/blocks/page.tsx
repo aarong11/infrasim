@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { ThemeToggle } from '../../../components/ThemeToggle';
+import { useIframeMode } from '../../../utils/iframe-navigation';
+import { APIThrottler } from '../../../utils/api-throttler';
 
 interface Block {
   number: number;
@@ -10,7 +13,11 @@ interface Block {
   gasUsed: string;
   gasLimit: string;
   miner: string;
+  transactions: string[];
   transactionCount: number;
+  size: number;
+  difficulty: string;
+  parentHash: string;
 }
 
 interface BlocksResponse {
@@ -21,16 +28,31 @@ interface BlocksResponse {
 }
 
 export default function BlocksPage() {
+  const isIframe = useIframeMode();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // API throttling
+  const apiThrottler = useRef(new APIThrottler({
+    minInterval: 1000,
+    maxBackoff: 30000,
+    maxRetries: 3,
+    baseBackoff: 2000
+  }));
+
   const fetchBlocks = async (page: number = 1) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/blocks?page=${page}&limit=20`);
+      setError(null);
+      
+      const response = await apiThrottler.current.throttledCall(
+        () => fetch(`/api/blocks?page=${page}&limit=20`),
+        `blocks-page-${page}`
+      );
+      
       if (!response.ok) throw new Error('Failed to fetch blocks');
       
       const data: BlocksResponse = await response.json();
@@ -42,6 +64,11 @@ export default function BlocksPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = () => {
+    apiThrottler.current.reset(`blocks-page-${currentPage}`); // Reset backoff for manual refresh
+    fetchBlocks(currentPage);
   };
 
   useEffect(() => {
@@ -66,13 +93,19 @@ export default function BlocksPage() {
 
   if (loading && blocks.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="explorer-page p-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Blocks</h1>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold theme-text-primary">Blocks</h1>
+              <p className="theme-text-secondary mt-2">Latest blockchain blocks</p>
+            </div>
+            {!isIframe && <ThemeToggle />}
+          </div>
+          <div className="explorer-card shadow p-6">
             <div className="animate-pulse space-y-4">
               {[...Array(10)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                <div key={i} className="h-16 theme-bg-tertiary rounded"></div>
               ))}
             </div>
           </div>
@@ -83,17 +116,22 @@ export default function BlocksPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="explorer-page p-6">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Blocks</h1>
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <p className="text-red-600">Error: {error}</p>
-            <button 
-              onClick={() => fetchBlocks(currentPage)}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Retry
-            </button>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold theme-text-primary">Blocks</h1>
+            {!isIframe && <ThemeToggle />}
+          </div>
+          <div className="explorer-card p-6">
+            <div className="text-center">
+              <p className="text-red-400 mb-4">Error: {error}</p>
+              <button 
+                onClick={() => fetchBlocks(currentPage)}
+                className="explorer-button px-4 py-2 rounded"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -101,85 +139,96 @@ export default function BlocksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="explorer-page p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Blocks</h1>
-          <button
-            onClick={() => fetchBlocks(currentPage)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Refresh
-          </button>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="flex items-center mb-2">
+              <Link href="/explorer" className="theme-accent-primary hover:underline mr-4">
+                ← Back to Explorer
+              </Link>
+            </div>
+            <h1 className="text-3xl font-bold theme-text-primary">Blocks</h1>
+            <p className="theme-text-secondary mt-2">Latest blockchain blocks ({blocks.length} found)</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleRefresh}
+              className="explorer-button px-4 py-2 rounded transition-colors"
+            >
+              Refresh
+            </button>
+            {!isIframe && <ThemeToggle />}
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="explorer-card shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full">
+              <thead className="explorer-table-header">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Block
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Age
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Txn
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Gas Used
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Gas Limit
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Miner
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="explorer-table divide-y theme-border-primary">
                 {blocks.map((block) => {
                   const timeInfo = formatTimestamp(block.timestamp);
                   const gasUsedPercent = ((Number(block.gasUsed) / Number(block.gasLimit)) * 100).toFixed(1);
                   
                   return (
-                    <tr key={block.number} className="hover:bg-gray-50">
+                    <tr key={block.number} className="explorer-table-row">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Link 
                           href={`/explorer/block/${block.number}`}
-                          className="text-blue-600 hover:text-blue-800 font-mono"
+                          className="theme-accent-primary hover:opacity-80 font-mono"
                         >
                           {block.number}
                         </Link>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900" title={timeInfo.absolute}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary" title={timeInfo.absolute}>
                         {timeInfo.relative}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-900 text-cyan-300">
                           {block.transactionCount}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                         <div className="flex flex-col">
                           <span className="font-mono">{formatGas(block.gasUsed)}</span>
-                          <div className="w-20 bg-gray-200 rounded-full h-1.5 mt-1">
+                          <div className="w-20 theme-bg-tertiary rounded-full h-1.5 mt-1">
                             <div 
-                              className="bg-blue-600 h-1.5 rounded-full" 
+                              className="bg-cyan-400 h-1.5 rounded-full" 
                               style={{ width: `${Math.min(100, Number(gasUsedPercent))}%` }}
                             ></div>
                           </div>
-                          <span className="text-xs text-gray-500">{gasUsedPercent}%</span>
+                          <span className="text-xs theme-text-tertiary">{gasUsedPercent}%</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary font-mono">
                         {formatGas(block.gasLimit)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                         <Link 
                           href={`/explorer/address/${block.miner}`}
-                          className="text-blue-600 hover:text-blue-800 font-mono"
+                          className="theme-accent-primary hover:opacity-80 font-mono"
                         >
                           {shortenHash(block.miner)}
                         </Link>
@@ -198,19 +247,19 @@ export default function BlocksPage() {
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage <= 1}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded disabled:opacity-50 hover:bg-gray-400 transition-colors"
+              className="explorer-button px-4 py-2 rounded disabled:opacity-50 transition-colors"
             >
               Previous
             </button>
             
-            <span className="text-gray-700">
+            <span className="theme-text-secondary">
               Page {currentPage} of {totalPages}
             </span>
             
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage >= totalPages}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded disabled:opacity-50 hover:bg-gray-400 transition-colors"
+              className="explorer-button px-4 py-2 rounded disabled:opacity-50 transition-colors"
             >
               Next
             </button>

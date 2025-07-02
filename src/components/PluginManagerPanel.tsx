@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getPluginManager } from '../core/plugin-manager';
+import { getPluginManager } from '@core/plugin-manager';
 import { 
   PluginDefinition, 
   PluginExecutionContext, 
   ExecutionEnvironment,
   PluginExecutionStatus 
-} from '../core/plugin-system';
+} from '@core/plugin-system';
 
 interface PluginManagerPanelProps {
   onClose: () => void;

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useWebAuthnWallet } from '@/components/WebAuthnWalletProvider';
+import { useWebAuthnWallet } from '@/providers/UnifiedWalletProvider';
 
 export default function AddressPage() {
   const params = useParams();

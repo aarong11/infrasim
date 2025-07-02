@@ -1,4 +1,4 @@
-import { InfrastructureEntity } from '../../types/infrastructure';
+import { InfrastructureEntity } from '@lib/infrastructure';
 
 export interface CompanyProfile {
   id: string;

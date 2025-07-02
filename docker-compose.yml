@@ -21,14 +21,15 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL:-http://ethereum-sim:8545}
       - WATCHPACK_POLLING=${WATCHPACK_POLLING:-true}
       - NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
-      - NEXT_PUBLIC_CUSTOM_RPC_URL=${NEXT_PUBLIC_CUSTOM_RPC_URL}
+      - NEXT_PUBLIC_CUSTOM_RPC_URL=${NEXT_PUBLIC_CUSTOM_RPC_URL:-http://localhost:8545}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - LAMBDA_LABS_API_KEY=${LAMBDA_LABS_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
     volumes:
       - ./src:/app/src  # Mount source code
       - ./public:/app/public  # Mount public files
@@ -41,8 +42,9 @@ services:
       - /app/node_modules  # Anonymous volume for node_modules
       - /app/.next  # Anonymous volume for Next.js build cache
     depends_on:
-      - ethereum-sim
       - ollama
+      - matrix
+      - hardhat-polygon
     restart: unless-stopped
     networks:
       - infrasim-network
@@ -52,6 +54,46 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # Hardhat Polygon Testnet Node
+  hardhat-polygon:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    container_name: infrasim-hardhat-polygon
+    ports:
+      - "8545:8545"  # HTTP-RPC server
+      - "8546:8546"  # Deployment API server
+    volumes:
+      - ./blockchain:/app/blockchain
+      - ./contracts:/app/contracts
+      - hardhat-data:/app/data
+      - hardhat-config:/app/config
+    environment:
+      - CHAIN_ID=80001
+      - NETWORK_NAME=Polygon Mumbai Testnet
+      - BLOCK_TIME=2
+    restart: unless-stopped
+    networks:
+      - infrasim-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: infrasim-cloudflared
+    command: tunnel --no-autoupdate run
+    restart: unless-stopped
+    depends_on:
+      - web
+    volumes:
+      - ./cloudflare:/etc/cloudflared
+    networks:
+      - infrasim-network
       
   # Ollama AI Service
   ollama:
@@ -62,7 +104,8 @@ services:
     volumes:
       - ollama-data:/root/.ollama
     environment:
-      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0}
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=*
     restart: unless-stopped
     networks:
       - infrasim-network
@@ -88,32 +131,92 @@ services:
       - infrasim-network
     restart: "no"
 
-  # Ethereum Simulation Environment
-  ethereum-sim:
-    build: ./ethereum
-    container_name: infrasim-ethereum
+  # Matrix Synapse Server
+  matrix:
+    image: matrixdotorg/synapse:latest
+    container_name: infrasim-matrix
     ports:
-      - "8545:8545"
-      - "8546:8546"  # Deployment API server
+      - "8008:8008"  # Matrix client-server API
+      - "8448:8448"  # Matrix federation API
     volumes:
-      - ethereum-data:/data
+      - matrix-data:/data
+      - ./matrix/homeserver.yaml:/data/homeserver.yaml
     environment:
-      - NODE_ENV=development
-      - PRIVATE_KEY=${ETHEREUM_PRIVATE_KEY}
+      - SYNAPSE_SERVER_NAME=${MATRIX_SERVER_NAME:-localhost}
+      - SYNAPSE_REPORT_STATS=no
+    depends_on:
+      matrix-db:
+        condition: service_healthy
+      matrix-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - infrasim-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      test: ["CMD", "curl", "-f", "http://localhost:8008/_matrix/client/versions"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
+
+  # Matrix Volume Initializer
+  matrix-init:
+    image: alpine:latest
+    container_name: infrasim-matrix-init
+    volumes:
+      - matrix-data:/data
+    command: |
+      sh -c "
+        echo 'Initializing Matrix data directory permissions...'
+        chmod -R 777 /data
+        echo 'Matrix data directory initialized with full permissions'
+      "
+    restart: "no"
+    networks:
+      - infrasim-network
+
+  # Matrix Database (PostgreSQL)
+  matrix-db:
+    image: postgres:15-alpine
+    container_name: infrasim-matrix-db
+    environment:
+      - POSTGRES_DB=synapse
+      - POSTGRES_USER=synapse
+      - POSTGRES_PASSWORD=${MATRIX_DB_PASSWORD:-synapse_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - matrix-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - infrasim-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Matrix Admin Interface (Optional)
+  matrix-admin:
+    image: awesometechnologies/synapse-admin:latest
+    container_name: infrasim-matrix-admin
+    ports:
+      - "8080:80"
+    environment:
+      - REACT_APP_SERVER=http://localhost:8008
+    depends_on:
+      - matrix
+    restart: unless-stopped
+    networks:
+      - infrasim-network
 
 volumes:
   ollama-data:
     driver: local
-  ethereum-data:
+  hardhat-data:
     driver: local
-  blockscout-db:
+  hardhat-config:
+    driver: local
+  matrix-data:
+    driver: local
+  matrix-db-data:
     driver: local

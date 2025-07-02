@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Send, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
-import { useWebAuthnWallet } from './WebAuthnWalletProvider';
+import { useWebAuthnWallet } from '../providers/UnifiedWalletProvider';
 
 interface TransactionFormProps {
   onTransactionSent?: (txHash: string) => void;

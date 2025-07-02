@@ -42,7 +42,7 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const companiesPerPage = 9;
+  const companiesPerPage = 15; // Increased from 9 to 15
   
   const vectorService = new ClientVectorMemoryService();
 
@@ -217,7 +217,7 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
       )}
 
       {/* Company Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 mb-8">
         {currentCompanies.map(company => {
           const complexity = company.metadata?.complexity || inferComplexity(company);
           const compliance = company.metadata?.compliance || [];
@@ -225,25 +225,25 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
           return (
             <div
               key={company.id}
-              className={`p-6 border-2 rounded-lg shadow-lg bg-gray-800 ${getSectorColor(company.sectorTags)} hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 w-full h-72 flex flex-col`}
+              className={`p-4 border-2 rounded-lg shadow-lg bg-gray-800 ${getSectorColor(company.sectorTags)} hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 w-full h-56 flex flex-col`}
               onClick={() => handleCompanyClick(company)}
             >
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="text-4xl">
+              <div className="flex items-center space-x-2 mb-3">
+                <div className="text-2xl">
                   {complexityIcons[complexity]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-bold text-white truncate">{company.name}</h2>
-                  <p className="text-sm text-gray-400 truncate">
+                  <h2 className="text-lg font-bold text-white truncate">{company.name}</h2>
+                  <p className="text-xs text-gray-400 truncate">
                     {company.sectorTags.slice(0, 2).join(' • ')}
                   </p>
                 </div>
               </div>
               
-              <p className="text-gray-300 mb-4 text-sm leading-relaxed flex-1 overflow-hidden"
+              <p className="text-gray-300 mb-3 text-xs leading-relaxed flex-1 overflow-hidden"
                  style={{
                    display: '-webkit-box',
-                   WebkitLineClamp: 3,
+                   WebkitLineClamp: 2,
                    WebkitBoxOrient: 'vertical',
                    textOverflow: 'ellipsis'
                  }}
@@ -251,40 +251,45 @@ export const CompanyGrid: React.FC<CompanyGridProps> = ({ onCompanyClick }) => {
                 {company.description}
               </p>
               
-              <div className="flex flex-wrap gap-2 mb-4 min-h-[2rem]">
-                {company.services.slice(0, 4).map(service => (
+              <div className="flex flex-wrap gap-1 mb-3 min-h-[1.5rem]">
+                {company.services.slice(0, 3).map(service => (
                   <span
                     key={service}
-                    className="px-3 py-1 text-xs bg-gray-700 text-cyan-300 rounded-full border border-gray-600 truncate"
+                    className="px-2 py-0.5 text-xs bg-gray-700 text-cyan-300 rounded-full border border-gray-600 truncate"
                   >
                     {service}
                   </span>
                 ))}
-                {company.services.length > 4 && (
-                  <span className="px-3 py-1 text-xs bg-gray-600 text-gray-300 rounded-full">
-                    +{company.services.length - 4} more
+                {company.services.length > 3 && (
+                  <span className="px-2 py-0.5 text-xs bg-gray-600 text-gray-300 rounded-full">
+                    +{company.services.length - 3}
                   </span>
                 )}
               </div>
               
               <div className="flex items-center justify-between mt-auto">
                 <div className="flex flex-wrap gap-1 flex-1 mr-2">
-                  {compliance.map((comp: string) => (
+                  {compliance.slice(0, 2).map((comp: string) => (
                     <span
                       key={comp}
-                      className="px-2 py-1 text-xs bg-cyan-900 text-cyan-200 rounded-full border border-cyan-700 truncate"
+                      className="px-1.5 py-0.5 text-xs bg-cyan-900 text-cyan-200 rounded-full border border-cyan-700 truncate"
                     >
                       {comp}
                     </span>
                   ))}
+                  {compliance.length > 2 && (
+                    <span className="px-1.5 py-0.5 text-xs bg-cyan-800 text-cyan-200 rounded-full">
+                      +{compliance.length - 2}
+                    </span>
+                  )}
                 </div>
                 
-                <div className="flex items-center space-x-2 flex-shrink-0">
+                <div className="flex items-center space-x-1 flex-shrink-0">
                   <span className="text-xs text-gray-400 truncate">
                     {complexity}
                   </span>
-                  <div className="px-3 py-1 text-xs bg-cyan-600 text-white rounded-lg">
-                    Explore →
+                  <div className="px-2 py-0.5 text-xs bg-cyan-600 text-white rounded">
+                    →
                   </div>
                 </div>
               </div>

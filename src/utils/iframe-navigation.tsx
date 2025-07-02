@@ -21,6 +21,17 @@ export function isIframeMode(): boolean {
   }
 }
 
+// Hook to use iframe mode detection in React components
+export function useIframeMode() {
+  const [isIframe, setIsIframe] = React.useState(false);
+  
+  React.useEffect(() => {
+    setIsIframe(isIframeMode());
+  }, []);
+  
+  return isIframe;
+}
+
 // Navigate within the iframe system
 export function navigateToIframe(path: string, options: { newTab?: boolean; newWindow?: boolean } = {}) {
   if (typeof window === 'undefined') return;
@@ -100,6 +111,45 @@ export function hideChat() {
   }
 }
 
+// Theme control functions for iframe communication
+export function toggleTheme() {
+  if (typeof window === 'undefined') return;
+  
+  if (isIframeMode()) {
+    // Send message to parent to toggle theme
+    try {
+      window.parent.postMessage({
+        type: 'TOGGLE_THEME'
+      }, '*');
+    } catch (e) {
+      console.warn('Could not send toggle theme message to parent');
+    }
+  } else {
+    // We're in the parent, use the theme context directly
+    const event = new CustomEvent('toggle-theme');
+    window.dispatchEvent(event);
+  }
+}
+
+export function setTheme(theme: 'light' | 'dark') {
+  if (typeof window === 'undefined') return;
+  
+  if (isIframeMode()) {
+    try {
+      window.parent.postMessage({
+        type: 'THEME_CHANGE',
+        theme: theme
+      }, '*');
+    } catch (e) {
+      console.warn('Could not send theme change message to parent');
+    }
+  } else {
+    // We're in the parent, dispatch a custom event
+    const event = new CustomEvent('set-theme', { detail: { theme } });
+    window.dispatchEvent(event);
+  }
+}
+
 // React component for iframe-aware links
 interface IframeLinkProps {
   href: string;
@@ -174,6 +224,38 @@ export const ChatControlButton: React.FC<ChatControlButtonProps> = ({
   );
 };
 
+// React component for theme control button (for use inside iframes)
+interface ThemeControlButtonProps {
+  children: React.ReactNode;
+  className?: string;
+  title?: string;
+  onClick?: () => void;
+}
+
+export const ThemeControlButton: React.FC<ThemeControlButtonProps> = ({
+  children,
+  className = '',
+  title = 'Toggle Theme',
+  onClick
+}) => {
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    }
+    toggleTheme();
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className={className}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+};
+
 // Hook for iframe navigation
 export function useIframeNavigation() {
   const navigate = (path: string, options?: { newTab?: boolean; newWindow?: boolean }) => {
@@ -182,9 +264,11 @@ export function useIframeNavigation() {
 
   return {
     navigate,
-    isIframe: isIframeMode(),
+    isIframe: useIframeMode(),
     toggleChat,
     showChat,
-    hideChat
+    hideChat,
+    toggleTheme,
+    setTheme
   };
 }

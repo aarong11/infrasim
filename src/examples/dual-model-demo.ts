@@ -1,6 +1,6 @@
-import { LangChainOrchestrator } from '../core/langchain-orchestrator';
-import { ModelRole } from '../core/model-manager';
-import { ProcessingMode } from '../core/langchain-orchestrator';
+import { LangChainOrchestrator } from '@core/langchain-orchestrator';
+import { ModelRole } from '@core/model-manager';
+import { ProcessingMode } from '@core/langchain-orchestrator';
 
 /**
  * Example demonstrating the dual model configuration system

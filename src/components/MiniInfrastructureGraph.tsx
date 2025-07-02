@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { InfrastructureEntity, FidelityLevel } from '@lib/infrastructure';
 import ReactFlow, {
   Node,
   Edge,
@@ -12,7 +13,6 @@ import ReactFlow, {
   Background,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { InfrastructureEntity, FidelityLevel } from '../types/infrastructure';
 import { EntityNode } from './EntityNode';
 
 const nodeTypes = {

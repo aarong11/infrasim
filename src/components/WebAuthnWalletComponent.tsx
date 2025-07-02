@@ -2,23 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, Fingerprint, Clock, Eye, EyeOff, Copy, Download, AlertCircle, CheckCircle, Trash2, Plus, Wallet, Coins } from 'lucide-react';
-import { useWebAuthnWallet } from './WebAuthnWalletProvider';
+import { useUnifiedWallet } from '../providers/UnifiedWalletProvider';
+import { WebAuthnWallet } from '../store/wallet-store';
+import { useAppStore } from '../store/app-store';
 import { navigateToIframe } from '../utils/iframe-navigation';
 
 export const WebAuthnWalletComponent: React.FC = () => {
   const { 
-    wallet, 
-    isConnected, 
-    isAuthenticated,
-    isRegistered,
+    webauthnWallets,
+    activeWallet,
+    isWebAuthnConnected,
+    isWebAuthnAuthenticated,
+    isWebAuthnRegistered,
     isWebAuthnSupported,
-    registerWallet,
-    authenticate,
-    disconnect,
-    clearWallet,
-    updateBalance,
-    timeRemaining
-  } = useWebAuthnWallet();
+    createWebAuthnWallet,
+    authenticateWebAuthn,
+    disconnectWallet,
+    removeWallet,
+    updateBalance
+  } = useUnifiedWallet();
+
+  // Get the primary WebAuthn wallet
+  const wallet = webauthnWallets[0] as WebAuthnWallet | undefined;
+  const isConnected = isWebAuthnConnected && activeWallet?.type === 'webauthn';
+  const isAuthenticated = isWebAuthnAuthenticated;
+  const isRegistered = isWebAuthnRegistered;
+  const registerWallet = createWebAuthnWallet;
+  const authenticate = authenticateWebAuthn;
+  const disconnect = () => wallet && disconnectWallet(wallet.id);
+  const clearWallet = () => wallet && removeWallet(wallet.id);
+  const timeRemaining = wallet?.timeRemaining || 0;
+
+  const { walletTimeout } = useAppStore();
 
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [showMnemonic, setShowMnemonic] = useState(false);
@@ -64,12 +79,13 @@ export const WebAuthnWalletComponent: React.FC = () => {
   const exportWallet = () => {
     if (!wallet) return;
     
+    // For WebAuthn wallets, we can't export private keys directly for security
     const walletExport = {
       address: wallet.address,
-      privateKey: wallet.privateKey,
-      mnemonic: wallet.mnemonic,
+      // Note: WebAuthn wallets don't expose private keys for security
+      type: 'WebAuthn Secure Wallet',
       exportDate: new Date().toISOString(),
-      type: 'WebAuthn Secure Wallet'
+      warning: 'This is a WebAuthn wallet - private keys are securely stored and not exportable'
     };
     
     const dataStr = JSON.stringify(walletExport, null, 2);
@@ -86,6 +102,7 @@ export const WebAuthnWalletComponent: React.FC = () => {
   };
 
   const formatTime = (seconds: number): string => {
+    if (walletTimeout === 0) return "∞"; // No timeout
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -193,7 +210,7 @@ export const WebAuthnWalletComponent: React.FC = () => {
           </div>
           
           <button
-            onClick={updateBalance}
+            onClick={() => updateBalance(wallet?.id)}
             className="text-green-400 hover:text-green-300 transition-colors"
             title="Refresh balance"
           >
@@ -224,12 +241,12 @@ export const WebAuthnWalletComponent: React.FC = () => {
       </div>
 
       {showDetails && (
-        <div className="absolute bottom-full right-0 mb-2 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 w-[500px] backdrop-blur-sm">
+        <div className="absolute bottom-full left-0 mb-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 w-[500px] backdrop-blur-sm">
           {/* Tab Navigation */}
-          <div className="flex border-b border-gray-700">
+          <div className="flex border-b border-gray-700 bg-gray-800 rounded-t-lg">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors rounded-tl-lg ${
                 activeTab === 'overview'
                   ? 'bg-gray-700 text-white border-b-2 border-cyan-400'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
@@ -239,7 +256,7 @@ export const WebAuthnWalletComponent: React.FC = () => {
             </button>
             <a
               href="/wallet"
-              className="flex-1 px-4 py-3 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors text-center"
+              className="flex-1 px-4 py-3 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-700/50 transition-colors text-center rounded-tr-lg"
               onClick={(e) => {
                 e.preventDefault();
                 navigateToIframe('/wallet');
@@ -329,63 +346,14 @@ export const WebAuthnWalletComponent: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-300">Private Key:</label>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setShowPrivateKey(!showPrivateKey)}
-                      className="text-gray-400 hover:text-gray-200 transition-colors"
-                      title="Toggle visibility"
-                    >
-                      {showPrivateKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                    <button
-                      onClick={() => copyToClipboard(wallet?.privateKey || '')}
-                      className="text-cyan-400 hover:text-cyan-300 transition-colors"
-                      title="Copy private key"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <input
-                  type={showPrivateKey ? "text" : "password"}
-                  value={wallet?.privateKey || ''}
-                  readOnly
-                  className="w-full p-2 text-xs bg-gray-900/50 border border-gray-600 rounded text-gray-200 font-mono focus:border-cyan-400"
-                />
+              {/* Note about WebAuthn security */}
+              <div className="bg-amber-900/20 border border-amber-700/30 p-3 rounded-lg">
+                <h4 className="font-medium text-amber-300 mb-2 text-sm">Security Notice:</h4>
+                <p className="text-xs text-amber-200">
+                  WebAuthn wallets use biometric authentication and encrypted storage. 
+                  Private keys and mnemonics are not directly accessible for security reasons.
+                </p>
               </div>
-
-              {wallet?.mnemonic && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-300">Mnemonic:</label>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setShowMnemonic(!showMnemonic)}
-                        className="text-gray-400 hover:text-gray-200 transition-colors"
-                        title="Toggle visibility"
-                      >
-                        {showMnemonic ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                      <button
-                        onClick={() => copyToClipboard(wallet?.mnemonic || '')}
-                        className="text-cyan-400 hover:text-cyan-300 transition-colors"
-                        title="Copy mnemonic"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <textarea
-                    value={showMnemonic ? wallet?.mnemonic : '••••• ••••• ••••• •••••'}
-                    readOnly
-                    className="w-full p-2 text-xs bg-gray-900/50 border border-gray-600 rounded text-gray-200 font-mono focus:border-cyan-400"
-                    rows={2}
-                  />
-                </div>
-              )}
 
               {/* Security Features */}
               <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg">

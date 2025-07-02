@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { WalletType } from '../types/wallet-types';
 
 export interface LLMLogEntry {
   id: string;
@@ -57,6 +58,14 @@ interface AppState {
   showMemory: boolean;
   showDeveloper: boolean;
   showChat: boolean;
+  showWallet: boolean;
+  
+  // Wallet Settings
+  walletTimeout: number; // timeout in minutes, 0 = no timeout
+  selectedWalletType: WalletType;
+  showWalletSelector: boolean;
+  showWalletInfo: boolean;
+  walletInfoType: WalletType | null;
   
   // Context Management
   currentContext: AppContext;
@@ -78,6 +87,13 @@ interface AppState {
   setShowMemory: (show: boolean) => void;
   setShowDeveloper: (show: boolean) => void;
   setShowChat: (show: boolean) => void;
+  setShowWallet: (show: boolean) => void;
+  
+  // Actions - Settings
+  setWalletTimeout: (timeout: number) => void;
+  setSelectedWalletType: (type: WalletType) => void;
+  setShowWalletSelector: (show: boolean) => void;
+  setShowWalletInfo: (show: boolean, type?: WalletType) => void;
   
   // Actions - Context
   setContext: (context: AppContext) => void;
@@ -110,6 +126,14 @@ export const useAppStore = create<AppState>()(
       showMemory: false,
       showDeveloper: false,
       showChat: false,
+      showWallet: false,
+      
+      // Wallet Settings
+      walletTimeout: 5, // default to 5 minutes (original timeout)
+      selectedWalletType: WalletType.WEBAUTHN, // default to WebAuthn
+      showWalletSelector: false,
+      showWalletInfo: false,
+      walletInfoType: null,
       
       // Context Management
       currentContext: {
@@ -135,6 +159,16 @@ export const useAppStore = create<AppState>()(
       setShowMemory: (show: boolean) => set({ showMemory: show }),
       setShowDeveloper: (show: boolean) => set({ showDeveloper: show }),
       setShowChat: (show: boolean) => set({ showChat: show }),
+      setShowWallet: (show: boolean) => set({ showWallet: show }),
+      
+      // Actions - Settings
+      setWalletTimeout: (timeout: number) => set({ walletTimeout: timeout }),
+      setSelectedWalletType: (type: WalletType) => set({ selectedWalletType: type }),
+      setShowWalletSelector: (show: boolean) => set({ showWalletSelector: show }),
+      setShowWalletInfo: (show: boolean, type?: WalletType) => set({ 
+        showWalletInfo: show, 
+        walletInfoType: show ? type || null : null 
+      }),
       
       // Actions - Context
       setContext: (context: AppContext) => {

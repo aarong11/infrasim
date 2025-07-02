@@ -1,0 +1,16 @@
+{
+  "setupCompleted": true,
+  "completedAt": "2025-07-01T19:43:36.794Z",
+  "networkConfig": {
+    "networkName": "Polygon Mumbai Testnet",
+    "chainId": 80001,
+    "rpcUrl": "http://localhost:8545",
+    "blockTime": 2,
+    "gasPrice": "20000000000",
+    "gasLimit": "20000000"
+  },
+  "adminWallet": {
+    "address": "0xc0874C2e5333C64b27Fcb1C0628E004F13530970",
+    "isHardwareWallet": false
+  }
+}

@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { CompanyMemoryRecord, InfrastructureEntity, EntityType, FidelityLevel, Port } from '../types/infrastructure';
 import { useAppStore, AppContext } from '../store/app-store';
 import { v4 as uuidv4 } from 'uuid';
+import { APIThrottler } from '../utils/api-throttler';
 
 export interface ToolExecutionResult {
   success: boolean;
@@ -23,6 +24,13 @@ export interface ToolExecutionResult {
 }
 
 export class ToolHandlers {
+  private apiThrottler = new APIThrottler({
+    minInterval: 1000,
+    maxBackoff: 30000,
+    maxRetries: 3,
+    baseBackoff: 2000
+  });
+
   constructor(ollamaBaseUrl: string = process.env.OLLAMA_BASE_URL || 'http://localhost:11434') {
     // Client-side version - no server imports
   }
@@ -93,11 +101,14 @@ export class ToolHandlers {
       ...params
     };
     
-    const response = await fetch('/api/vector-memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
-    });
+    const response = await this.apiThrottler.throttledCall(
+      () => fetch('/api/vector-memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }),
+      `tool-${action}`
+    );
 
     if (!response.ok) {
       throw new Error(`API call failed: ${response.statusText}`);
@@ -202,6 +213,13 @@ export class ToolHandlers {
         timestamp: new Date()
       };
     }
+  }
+
+  /**
+   * Reset API throttling for manual refresh
+   */
+  resetThrottling(): void {
+    this.apiThrottler.resetAll();
   }
 
   private async handleCreateCompany(action: CreateCompanyAction, context?: AppContext): Promise<ToolExecutionResult> {

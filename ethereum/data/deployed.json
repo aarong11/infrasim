@@ -1,23 +1,53 @@
 {
   "network": "localhost",
   "chainId": 31337,
-  "deployedAt": "2025-06-16T11:10:24.295Z",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "deployedAt": "2025-07-01T18:00:59.242Z",
   "contracts": {
-    "USDC": {
-      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-      "symbol": "USDC",
-      "decimals": 6,
-      "totalSupply": "1000000"
-    },
-    "BridgeVault": {
+    "APIAccessRegistry": {
       "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "usdcBalance": "100.0"
+      "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "deployedAt": "2025-07-01T18:00:59.649Z",
+      "description": "API access registry for wallet authentication and billing",
+      "configuration": {
+        "minimumDeposit": "10000000000000000",
+        "registrationFee": "1000000000000000",
+        "minimumDepositEth": "0.01",
+        "registrationFeeEth": "0.001"
+      },
+      "serviceTiers": {
+        "basic": {
+          "name": "Basic API Access",
+          "costPerRequest": "0.0001",
+          "rateLimit": 100
+        },
+        "premium": {
+          "name": "Premium AI Access",
+          "costPerRequest": "0.005",
+          "rateLimit": 50
+        },
+        "ai-heavy": {
+          "name": "Heavy AI Processing",
+          "costPerRequest": "0.01",
+          "rateLimit": 20
+        }
+      }
+    },
+    "ContractRegistry": {
+      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "deployedAt": "2025-07-01T18:01:00.787Z",
+      "description": "Central service discovery registry for all InfraSim contracts",
+      "services": {
+        "APIAccessRegistry": {
+          "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+          "metadata": "{\"description\":\"API access registry for wallet authentication and billing\",\"type\":\"Registry\",\"ui\":\"api-registry\",\"serviceTiers\":[\"basic\",\"premium\",\"ai-heavy\"]}"
+        }
+      }
     },
     "DAOFactory": {
       "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
       "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-      "deployedAt": "2025-06-17T01:12:00.860Z",
+      "deployedAt": "2025-07-01T18:00:58.500Z",
       "description": "Factory contract for creating DAOs"
     }
   }

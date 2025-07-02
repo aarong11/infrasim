@@ -5,7 +5,7 @@ compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
 routes = [
-  { pattern = "*/api/*", zone_name = "thewired.club" } # or your domain
+  { pattern = "*/api/*", zone_name = "infrasim.org" } # or your domain
 ]
 
 [env.production.vars]

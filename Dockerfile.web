@@ -24,10 +24,13 @@ FROM base AS development
 COPY . .
 # Create data directory for persistence
 RUN mkdir -p /app/data
+# Set environment variables for hostname binding
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 # Expose port
 EXPOSE 3000
 # Start in development mode with hot reload
-CMD ["yarn", "dev"]
+CMD ["yarn", "dev", "--hostname", "0.0.0.0"]
 
 # Production stage
 FROM base AS production
@@ -35,6 +38,9 @@ FROM base AS production
 COPY . .
 # Create data directory for persistence
 RUN mkdir -p /app/data
+# Set environment variables for hostname binding
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 # Build the application
 RUN yarn build
 # Expose port
@@ -42,4 +48,4 @@ EXPOSE 3000
 # Health check endpoint script
 RUN echo '#!/bin/sh\ncurl -f http://localhost:3000/api/health || exit 1' > /healthcheck.sh && chmod +x /healthcheck.sh
 # Start the application
-CMD ["yarn", "next:start"]
+CMD ["yarn", "next:start", "--hostname", "0.0.0.0"]

@@ -1,0 +1,97 @@
+# Matrix Synapse Configuration for InfraSim
+server_name: "localhost"
+pid_file: /data/homeserver.pid
+web_client_location: https://app.element.io/
+
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    bind_addresses: ['0.0.0.0']
+    resources:
+      - names: [client, federation]
+        compress: false
+
+# Database configuration
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: 0xf9fds8f@!jsf4934fj9
+    database: synapse
+    host: matrix-db
+    port: 5432
+    cp_min: 5
+    cp_max: 10
+
+# Use default logging instead of custom log config
+log_config: null
+log_level: INFO
+
+# Media storage
+media_store_path: /data/media_store
+max_upload_size: 50M
+max_image_pixels: 32M
+
+# Registration and users
+enable_registration: true
+enable_registration_without_verification: true
+registration_shared_secret: "InfraSim-Matrix-Secret-2024"
+
+# Rate limiting (more permissive for development)
+rc_message:
+  per_second: 20
+  burst_count: 100
+rc_registration:
+  per_second: 0.5
+  burst_count: 5
+rc_login:
+  address:
+    per_second: 0.5
+    burst_count: 10
+  account:
+    per_second: 0.5
+    burst_count: 10
+  failed_attempts:
+    per_second: 0.5
+    burst_count: 10
+
+# Federation settings
+federation_domain_whitelist: []
+federation_metrics_domains: []
+
+# Security settings
+macaroon_secret_key: "InfraSim-Matrix-Macaroon-2024"
+form_secret: "InfraSim-Matrix-Form-2024"
+
+# Trusted key servers for room version upgrades
+trusted_key_servers:
+  - server_name: "matrix.org"
+
+# Suppress the trusted key server warning
+suppress_key_server_warning: true
+
+# Room settings
+autocreate_auto_join_rooms: true
+auto_join_rooms:
+  - "#general:localhost"
+  - "#infrasim:localhost"
+
+# Turn off metrics for development
+enable_metrics: false
+report_stats: false
+
+# Email settings (properly disabled for development)
+email:
+  enable_notifs: false
+  notif_from: "InfraSim Matrix <noreply@localhost>"
+
+# Push settings (disabled for development)
+push:
+  include_content: false
+
+# Experimental features
+experimental_features:
+  msc3440_enabled: true  # Threading support
+  msc2716_enabled: true  # Importing historical messages

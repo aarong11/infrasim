@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useAppStore, AppContext } from '../store/app-store';
-import { useContextManager } from '../hooks/useContextManager';
+import React, { useState, useRef, useEffect } from 'react';
+import { useAppStore, AppContext } from '@store/app-store';
+import { useContextManager } from '@hooks/useContextManager';
 import { PluginModal } from './PluginModal';
-import { ToolExecutionMetadata } from '../core/enhanced-langchain-agent';
+import { ToolExecutionMetadata } from '@core/enhanced-langchain-agent';
 
 export interface ChatMessage {
   id: string;

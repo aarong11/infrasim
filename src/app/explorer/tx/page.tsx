@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Hash, Clock, ArrowRight, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ThemeToggle } from '../../../components/ThemeToggle';
+import { useIframeMode } from '../../../utils/iframe-navigation';
 
 interface Transaction {
   hash: string;
@@ -31,6 +33,7 @@ interface TransactionsResponse {
 }
 
 export default function TransactionsPage() {
+  const isIframe = useIframeMode();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,23 +126,24 @@ export default function TransactionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="explorer-page p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-              <p className="text-gray-600 mt-2">Latest blockchain transactions</p>
+              <h1 className="text-3xl font-bold theme-text-primary">Transactions</h1>
+              <p className="theme-text-secondary mt-2">Latest blockchain transactions</p>
             </div>
+            {!isIframe && <ThemeToggle />}
           </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="explorer-card p-8">
             <div className="animate-pulse space-y-4">
               {[...Array(10)].map((_, i) => (
                 <div key={i} className="flex items-center space-x-4">
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                  <div className="h-4 theme-bg-tertiary rounded w-1/4"></div>
+                  <div className="h-4 theme-bg-tertiary rounded w-1/6"></div>
+                  <div className="h-4 theme-bg-tertiary rounded w-1/6"></div>
+                  <div className="h-4 theme-bg-tertiary rounded w-1/4"></div>
+                  <div className="h-4 theme-bg-tertiary rounded w-1/6"></div>
                 </div>
               ))}
             </div>
@@ -151,17 +155,21 @@ export default function TransactionsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="explorer-page p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-            <div className="text-red-500 mb-4">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold theme-text-primary">Transactions</h1>
+            {!isIframe && <ThemeToggle />}
+          </div>
+          <div className="explorer-card p-8 text-center">
+            <div className="text-red-400 mb-4">
               <Hash className="w-12 h-12 mx-auto" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Transactions</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
+            <h2 className="text-xl font-semibold theme-text-primary mb-2">Error Loading Transactions</h2>
+            <p className="theme-text-secondary mb-4">{error}</p>
             <button
               onClick={() => fetchTransactions(currentPage)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="explorer-button px-4 py-2 rounded transition-colors"
             >
               Try Again
             </button>
@@ -172,67 +180,70 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="explorer-page p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center mb-2">
-              <Link href="/explorer" className="text-blue-600 hover:underline mr-4">
+              <Link href="/explorer" className="theme-accent-primary hover:underline mr-4">
                 ← Back to Explorer
               </Link>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-3xl font-bold theme-text-primary">Transactions</h1>
+            <p className="theme-text-secondary mt-2">
               Latest blockchain transactions • Block #{latestBlock.toLocaleString()}
             </p>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center space-x-2 explorer-button px-4 py-2 rounded transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
+            {!isIframe && <ThemeToggle />}
+          </div>
         </div>
 
         {/* Transactions Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="explorer-card shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full">
+              <thead className="explorer-table-header">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Transaction Hash
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Block
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     From
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     To
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Value
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Gas Price
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium theme-text-secondary uppercase tracking-wider">
                     Age
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="explorer-table divide-y theme-border-primary">
                 {transactions.map((tx) => (
-                  <tr key={tx.hash} className="hover:bg-gray-50 transition-colors">
+                  <tr key={tx.hash} className="explorer-table-row transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
                         href={`/explorer/tx/${tx.hash}`}
-                        className="text-blue-600 hover:text-blue-800 font-mono text-sm"
+                        className="theme-accent-primary hover:opacity-80 font-mono text-sm"
                       >
                         {shortenHash(tx.hash)}
                       </Link>
@@ -240,7 +251,7 @@ export default function TransactionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
                         href={`/explorer/block/${tx.blockNumber}`}
-                        className="text-blue-600 hover:text-blue-800 font-mono text-sm"
+                        className="theme-accent-primary hover:opacity-80 font-mono text-sm"
                       >
                         {tx.blockNumber.toLocaleString()}
                       </Link>
@@ -248,7 +259,7 @@ export default function TransactionsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Link
                         href={`/explorer/address/${tx.from}`}
-                        className="text-blue-600 hover:text-blue-800 font-mono text-sm"
+                        className="theme-accent-primary hover:opacity-80 font-mono text-sm"
                       >
                         {shortenAddress(tx.from)}
                       </Link>
@@ -257,21 +268,21 @@ export default function TransactionsPage() {
                       {tx.to ? (
                         <Link
                           href={`/explorer/address/${tx.to}`}
-                          className="text-blue-600 hover:text-blue-800 font-mono text-sm"
+                          className="theme-accent-primary hover:opacity-80 font-mono text-sm"
                         >
                           {shortenAddress(tx.to)}
                         </Link>
                       ) : (
-                        <span className="text-gray-500 text-sm italic">Contract Creation</span>
+                        <span className="theme-text-tertiary text-sm italic">Contract Creation</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm theme-text-primary">
                       {formatEther(tx.value)} ETH
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm theme-text-primary">
                       {formatGasPrice(tx.gasPrice)} gwei
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" title={formatTimestamp(tx.timestamp)}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-tertiary" title={formatTimestamp(tx.timestamp)}>
                       {formatTimeAgo(tx.timestamp)}
                     </td>
                   </tr>
@@ -279,12 +290,11 @@ export default function TransactionsPage() {
               </tbody>
             </table>
           </div>
-
           {transactions.length === 0 && (
             <div className="text-center py-12">
-              <Hash className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Transactions Found</h3>
-              <p className="text-gray-600">There are no transactions to display at this time.</p>
+              <Hash className="w-12 h-12 mx-auto theme-text-tertiary mb-4" />
+              <h3 className="text-lg font-medium theme-text-primary mb-2">No Transactions Found</h3>
+              <p className="theme-text-secondary">There are no transactions to display at this time.</p>
             </div>
           )}
         </div>
@@ -292,25 +302,25 @@ export default function TransactionsPage() {
         {/* Pagination */}
         {transactions.length > 0 && (
           <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
+            <div className="text-sm theme-text-secondary">
               Showing page {pagination.page} • {transactions.length} transactions
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage <= 1}
-                className="flex items-center space-x-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center space-x-1 px-3 py-2 theme-border-primary rounded-lg text-sm font-medium theme-text-primary explorer-card hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Previous</span>
               </button>
-              <span className="px-3 py-2 text-sm text-gray-700">
+              <span className="px-3 py-2 text-sm theme-text-secondary">
                 Page {currentPage}
               </span>
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={!pagination.hasMore}
-                className="flex items-center space-x-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center space-x-1 px-3 py-2 theme-border-primary rounded-lg text-sm font-medium theme-text-primary explorer-card hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span>Next</span>
                 <ChevronRight className="w-4 h-4" />

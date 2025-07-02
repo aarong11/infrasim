@@ -479,7 +479,7 @@ export class SecureWebAuthnWallet {
    * Register WebAuthn credential and generate new wallet
    * UPDATED: Handle async fingerprinting properly
    */
-  async registerWebAuthnAndStoreWallet(): Promise<WebAuthnWallet> {
+  async registerWebAuthnAndStoreWallet(timeoutMinutes: number = 5): Promise<WebAuthnWallet> {
     if (!this.isWebAuthnSupported()) {
       throw new Error('WebAuthn is not supported in this browser');
     }
@@ -563,8 +563,8 @@ export class SecureWebAuthnWallet {
       // Encrypt and store wallet
       await this.encryptAndStoreWallet(walletData, walletSalt);
 
-      // Set up auto-timeout
-      this.setDecryptedWallet(walletData);
+      // Set up auto-timeout with configurable timeout
+      this.setDecryptedWallet(walletData, timeoutMinutes);
 
       return walletData;
 
@@ -578,7 +578,7 @@ export class SecureWebAuthnWallet {
    * Authenticate with WebAuthn and load decrypted wallet
    * UPDATED: Handle async fingerprinting properly
    */
-  async authenticateAndLoadWallet(): Promise<WebAuthnWallet | null> {
+  async authenticateAndLoadWallet(timeoutMinutes: number = 5): Promise<WebAuthnWallet | null> {
     if (!this.isWebAuthnSupported()) {
       throw new Error('WebAuthn is not supported in this browser');
     }
@@ -643,7 +643,7 @@ export class SecureWebAuthnWallet {
       const wallet = await this.decryptWallet(decryptedSalt);
       
       if (wallet) {
-        this.setDecryptedWallet(wallet);
+        this.setDecryptedWallet(wallet, timeoutMinutes);
       }
 
       return wallet;
@@ -727,9 +727,9 @@ export class SecureWebAuthnWallet {
   }
 
   /**
-   * Set decrypted wallet in memory with auto-timeout
+   * Set decrypted wallet in memory with configurable auto-timeout
    */
-  private setDecryptedWallet(wallet: WebAuthnWallet): void {
+  private setDecryptedWallet(wallet: WebAuthnWallet, timeoutMinutes: number = 5): void {
     this.decryptedWallet = wallet;
     
     // Clear any existing timeout
@@ -737,10 +737,12 @@ export class SecureWebAuthnWallet {
       clearTimeout(this.timeoutId);
     }
 
-    // Set 5-minute timeout to clear wallet from memory
-    this.timeoutId = setTimeout(() => {
-      this.clearDecryptedWallet();
-    }, 5 * 60 * 1000); // 5 minutes
+    // Set timeout to clear wallet from memory (0 = no timeout)
+    if (timeoutMinutes > 0) {
+      this.timeoutId = setTimeout(() => {
+        this.clearDecryptedWallet();
+      }, timeoutMinutes * 60 * 1000);
+    }
   }
 
   /**
