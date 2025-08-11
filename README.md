@@ -7,6 +7,8 @@
 
 ## Overview
 
+Please consider donating to me so I can find somewhere to live and continue developing this at https://ko-fi.com/rng/
+
 InfraSim is a comprehensive infrastructure simulation platform that combines modern web technologies with artificial intelligence to help you design, model, and analyze IT infrastructure. Built with Next.js 14, TypeScript, and LangChain, it provides an intuitive interface for creating complex infrastructure topologies and simulating their behavior in real-time.
 
 ### Key Features
